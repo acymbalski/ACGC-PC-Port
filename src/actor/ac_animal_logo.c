@@ -35,12 +35,11 @@
 #define TITLE_WIDTH 64
 #define TITLE_HEIGHT 16
 
-#if VERSION == VER_GAFE01_00
-#define aAL_IN_FRAMES 121.0f
-#elif VERSION == VER_GAFU01_00
+#if VERSION == VER_GAFU01_00
 #define aAL_IN_FRAMES 101.0f
 #else
-#define aAL_IN_FRAMES 101.0f
+/* GAFE01_00 ROM (and VER_DELUXE built against it) use the 121-frame animation */
+#define aAL_IN_FRAMES 121.0f
 #endif
 
 extern u8 log_win_nintendo1_tex[];

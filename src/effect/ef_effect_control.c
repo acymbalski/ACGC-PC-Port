@@ -133,6 +133,15 @@ static eEC_PROFILE_c* profile_tbl[] = {
     &iam_ef_make_hem,
     &iam_ef_make_hem_kira,
     &iam_ef_make_hem_light,
+#if VERSION >= VER_DELUXE
+    &iam_ef_resetbreak,
+    &iam_ef_resetbreak_dust,
+    &iam_ef_resetbreak_parts,
+    &iam_ef_resetbreak_piece,
+    &iam_ef_screen,
+    &iam_ef_water_drop,
+    &iam_ef_nomi,
+#endif
 };
 
 static u8 eEC_effect_feature[] = {
@@ -144,6 +153,9 @@ static u8 eEC_effect_feature[] = {
     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE,  FALSE, FALSE, FALSE, TRUE,  FALSE, FALSE,
     FALSE, FALSE, FALSE, FALSE, TRUE,  FALSE, FALSE, TRUE,  FALSE, TRUE,  TRUE,  TRUE,  FALSE, TRUE,
+#if VERSION >= VER_DELUXE
+    FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
+#endif
 };
 
 static void eEC_actor_ct(ACTOR* actorx, GAME* game);
