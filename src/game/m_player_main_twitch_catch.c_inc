@@ -1,0 +1,438 @@
+/* Twitch catch celebration — triggered by Twitch chat redeems (fish/bug/fossil).
+ * Plays real catch animation + fanfare + shows dialogue with username.
+ * Modeled after notice_rod/get_scoop real catch states.
+ * VER_DELUXE only. */
+
+#include "ac_gyo_release.h"
+#include "ac_insect_h.h"
+
+#define mPlayer_TWITCH_CATCH_FISH   0
+#define mPlayer_TWITCH_CATCH_BUG    1
+#define mPlayer_TWITCH_CATCH_FOSSIL 2
+
+static u8 s_twitch_msg_buf[132];
+
+static int Player_actor_request_main_twitch_catch_all(GAME* game, mActor_name_t item, int catch_type, int prio) {
+    if (Player_actor_check_request_main_able(game, mPlayer_INDEX_TWITCH_CATCH, prio)) {
+        PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+
+        player->requested_main_index_data.twitch_catch.item = item;
+        player->requested_main_index_data.twitch_catch.catch_type = catch_type;
+
+        Player_actor_request_main_index(game, mPlayer_INDEX_TWITCH_CATCH, prio);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void Player_actor_request_main_twitch_catch_from_submenu(ACTOR* actorx, GAME* game) {
+    mPlayer_change_data_from_submenu_c* data = mPlib_Get_change_data_from_submenu_p();
+    mPlayer_request_twitch_catch_c* req = &data->request_main_data.twitch_catch;
+    PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+    int i;
+
+    Player_actor_request_main_twitch_catch_all(game, req->item, req->catch_type,
+                                                mPlayer_REQUEST_PRIORITY_31);
+    for (i = 0; i < 17; i++) {
+        player->requested_main_index_data.twitch_catch.username[i] = req->username[i];
+    }
+}
+
+static void Player_actor_Twitch_catch_demo_ct(ACTOR* actorx) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_twitch_catch_c* tc = &player->main_data.twitch_catch;
+    mMsg_Window_c* win = mMsg_Get_base_window_p();
+    rgba_t color;
+    u8 item_name[mIN_ITEM_NAME_LEN];
+    u8* player_name;
+    int dst;
+    int i;
+    const char* type_str;
+    const char* verb;
+
+    /* Line 1: "[twitchuser] redeemed a fish/bug/fossil."
+     * Line 2: "[PlayerName] found a [item name]!"
+     * Max: ~16+20+1+8+12+16+1 = ~74 bytes, well within 132 */
+    dst = 0;
+
+    /* Line 1: twitch username + " redeemed a [type]."
+     * Username is from network — filter to printable ASCII only
+     * to prevent message control code injection (0x7F = cmd prefix,
+     * 0xCD = newline, high bytes = special chars). */
+    for (i = 0; i < 16 && tc->username[i] != 0 && dst < 120; i++) {
+        u8 ch = tc->username[i];
+        if (ch >= 0x20 && ch < 0x7F) {
+            s_twitch_msg_buf[dst++] = ch;
+        }
+    }
+
+    switch (tc->catch_type) {
+    case mPlayer_TWITCH_CATCH_FISH:
+        type_str = " redeemed a fish.";
+        break;
+    case mPlayer_TWITCH_CATCH_BUG:
+        type_str = " redeemed a bug.";
+        break;
+    default:
+        type_str = " redeemed a fossil.";
+        break;
+    }
+    for (i = 0; type_str[i] != '\0' && dst < 130; i++) {
+        s_twitch_msg_buf[dst++] = (u8)type_str[i];
+    }
+
+    /* Newline between the two lines */
+    if (dst < 131) {
+        s_twitch_msg_buf[dst++] = 205; /* CHAR_NEW_LINE */
+    }
+
+    /* Line 2: in-game player name + " found a [item]!" */
+    player_name = Common_Get(now_private)->player_ID.player_name;
+    for (i = 0; i < PLAYER_NAME_LEN && player_name[i] != 0 && player_name[i] != ' ' && dst < 120; i++) {
+        s_twitch_msg_buf[dst++] = player_name[i];
+    }
+
+    verb = " found a ";
+    for (i = 0; verb[i] != '\0' && dst < 130; i++) {
+        s_twitch_msg_buf[dst++] = (u8)verb[i];
+    }
+
+    /* Copy item name (already in game encoding) */
+    mIN_copy_name_str(item_name, tc->item);
+    for (i = 0; i < mIN_ITEM_NAME_LEN && item_name[i] != 0 && dst < 130; i++) {
+        s_twitch_msg_buf[dst++] = item_name[i];
+    }
+
+    if (dst < 132) {
+        s_twitch_msg_buf[dst++] = '!';
+    }
+
+    /* Pad remainder */
+    for (i = dst; i < 132; i++) {
+        s_twitch_msg_buf[i] = ' ';
+    }
+
+    /* Terminate with MSGEND control code */
+    if (dst < 130) {
+        s_twitch_msg_buf[dst++] = 127; /* CHAR_CONTROL_CODE */
+        s_twitch_msg_buf[dst++] = 0;   /* mFont_CONT_CODE_LAST */
+    }
+    tc->msg_buf_len = dst;
+
+    mDemo_Set_msg_num(MSG_3);
+    mDemo_Set_talk_display_name(FALSE);
+    mDemo_Set_camera(CAMERA2_PROCESS_ITEM);
+    mDemo_Set_ListenAble();
+    mMsg_Set_LockContinue(win);
+
+    color.r = 185;
+    color.g = 245;
+    color.b = 80;
+    color.a = 255;
+
+    mDemo_Set_talk_window_color(&color);
+    mChoice_Clear_ChoseNum(mChoice_Get_base_window_p());
+}
+
+static void Player_actor_setup_main_Twitch_catch(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_request_twitch_catch_c* req = &player->requested_main_index_data.twitch_catch;
+    mPlayer_main_twitch_catch_c* tc = &player->main_data.twitch_catch;
+    GAME_PLAY* play = (GAME_PLAY*)game;
+    int free_space;
+    u8 fanfare;
+    int anim;
+    int i;
+
+    tc->timer = 0.0f;
+    tc->msg_mode = 0;
+    tc->item = req->item;
+    tc->catch_type = req->catch_type;
+    tc->scale = 0.01f;
+    tc->display_actor = NULL;
+    for (i = 0; i < 17; i++) {
+        tc->username[i] = req->username[i];
+    }
+
+    /* Add item to inventory */
+    free_space = mPlib_Get_space_putin_item();
+    if (free_space >= 0) {
+        Player_actor_putin_item(free_space, req->item, NULL);
+        tc->got_item = TRUE;
+    } else {
+        tc->got_item = FALSE;
+    }
+
+    /* Same catch animation for all types, different fanfares */
+    anim = mPlayer_ANIM_GET_T2;
+    switch (req->catch_type) {
+    case mPlayer_TWITCH_CATCH_FISH:
+        fanfare = 0x4C;
+        break;
+    case mPlayer_TWITCH_CATCH_BUG:
+        fanfare = 0x4B;
+        break;
+    default:
+        fanfare = 0x28;
+        break;
+    }
+
+    Player_actor_InitAnimation_Base2(actorx, game, anim, anim,
+                                     1.0f, 1.0f, 0.5f, -5.0f, 0, 0);
+    Player_actor_setup_main_Base(actorx, game);
+
+    /* Spawn display actor: fish uses GYO_RELEASE, bug uses insect actor,
+     * fossil uses bg_item draw (handled in m_player_draw.c_inc). */
+    if (req->catch_type == mPlayer_TWITCH_CATCH_FISH) {
+        ACTOR* gyoei = Actor_info_name_search(&play->actor_info, mAc_PROFILE_GYOEI, ACTOR_PART_CONTROL);
+
+        if (gyoei != NULL) {
+            play->submenu.water_pos = actorx->world.position;
+
+            tc->display_actor = Actor_info_make_actor(
+                &play->actor_info, game, mAc_PROFILE_GYO_RELEASE,
+                actorx->world.position.x,
+                actorx->world.position.y + 35.0f,
+                actorx->world.position.z,
+                0, actorx->shape_info.rotation.y, 0,
+                play->block_table.block_x, play->block_table.block_z,
+                -1, EMPTY_NO, req->item, -1, -1);
+
+            if (tc->display_actor != NULL) {
+                tc->display_actor->speed = 0.0f;
+                tc->display_actor->position_speed.x = 0.0f;
+                tc->display_actor->position_speed.y = 0.0f;
+                tc->display_actor->position_speed.z = 0.0f;
+            }
+        }
+    } else if (req->catch_type == mPlayer_TWITCH_CATCH_BUG) {
+        /* Bug: spawn via insect clip (same as spirit/ghost spawning) */
+        aINS_Clip_c* ins_clip = Common_Get(clip).insect_clip;
+
+        if (ins_clip != NULL && ins_clip->make_insect_proc != NULL) {
+            aINS_Init_c ins_init;
+            int insect_type = req->item - ITM_INSECT_START;
+
+            if (insect_type < 0 || insect_type >= aINS_INSECT_TYPE_NUM) {
+                insect_type = 0;
+            }
+            ins_init.insect_type = insect_type;
+            ins_init.position = actorx->world.position;
+            ins_init.position.y += 35.0f;
+            ins_init.extra_data = aINS_INIT_NORMAL;
+            ins_init.game = game;
+            tc->display_actor = ins_clip->make_insect_proc(&ins_init, aINS_MAKE_NEW);
+
+            if (tc->display_actor != NULL) {
+                aINS_INSECT_ACTOR* ins = (aINS_INSECT_ACTOR*)tc->display_actor;
+
+                /* Force visible: cull check runs before player, so set both
+                 * NO_CULL and NO_DRAW_WHILE_CULLED which the draw func requires. */
+                tc->display_actor->state_bitfield |= (ACTOR_STATE_NO_CULL | ACTOR_STATE_NO_DRAW_WHILE_CULLED);
+                tc->display_actor->drawn = TRUE;
+                ins->exist_flag = TRUE;
+                ins->life_time = 216000;
+                ins->alpha0 = 255;
+                ins->target_speed = 0.0f;
+                ins->speed_step = 0.0f;
+
+                /* aINS_setupActor sets mv_proc to the type-specific init
+                 * (e.g. aICH_actor_init for butterflies). The insect controller
+                 * calls mv_proc each frame — if the real init runs it will
+                 * check live-conditions (flowers, terrain) and self-destruct,
+                 * or start movement AI that fights our hand-tracking.
+                 * Replace mv_proc with a no-op so the model just sits still. */
+                tc->display_actor->mv_proc = mActor_NONE_PROC1;
+
+                /* Set draw_type animation frame to 0 (static idle pose).
+                 * The draw func computes draw_type = ((int)_1E0) << 1,
+                 * so 0.0f yields index 0 into the display list — valid for
+                 * every insect type. */
+                ins->_1E0 = 0.0f;
+
+                /* Prevent catch-range registration and wall collision checks
+                 * — this insect is display-only, not interactive. */
+                ins->insect_flags.bit_1 = TRUE;
+                ins->insect_flags.bit_2 = TRUE;
+            }
+        }
+    }
+
+    mBGMPsComp_make_ps_fanfare(fanfare, 0x168);
+}
+
+static void Player_actor_settle_main_Twitch_catch(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_twitch_catch_c* tc = &player->main_data.twitch_catch;
+    u8 fanfare;
+
+    /* Clean up display actor */
+    if (tc->display_actor != NULL) {
+        if (tc->catch_type == mPlayer_TWITCH_CATCH_BUG) {
+            aINS_INSECT_ACTOR* ins = (aINS_INSECT_ACTOR*)tc->display_actor;
+            ins->insect_flags.destruct = 1;
+        } else {
+            Actor_delete(tc->display_actor);
+        }
+        tc->display_actor = NULL;
+    }
+
+    switch (tc->catch_type) {
+    case mPlayer_TWITCH_CATCH_FISH:
+        fanfare = 0x4C;
+        break;
+    case mPlayer_TWITCH_CATCH_BUG:
+        fanfare = 0x4B;
+        break;
+    default:
+        fanfare = 0x28;
+        break;
+    }
+    mBGMPsComp_delete_ps_fanfare(fanfare, 0x168);
+}
+
+static int Player_actor_CulcAnimation_Twitch_catch(ACTOR* actorx, f32* frame_calc) {
+    return Player_actor_CulcAnimation_Base2(actorx, frame_calc);
+}
+
+static void Player_actor_Movement_Twitch_catch(ACTOR* actorx) {
+    add_calc_short_angle2(&actorx->shape_info.rotation.y, 0, 1.0f - sqrtf(0.5f), 2500, 50);
+    actorx->world.angle.y = actorx->shape_info.rotation.y;
+    Player_actor_Movement_Base_Braking_common(actorx, 0.32625001f);
+}
+
+static void Player_actor_set_eye_pattern_Twitch_catch(ACTOR* actorx, int end_flag) {
+    if (end_flag) {
+        Player_actor_set_eye_pattern_normal(actorx);
+    } else {
+        Player_actor_set_tex_anime_pattern(actorx);
+    }
+}
+
+static void Player_actor_ObjCheck_Twitch_catch(ACTOR* actorx, GAME* game) {
+    Player_actor_Excute_Corect_forStand(actorx, game);
+}
+
+static void Player_actor_BGcheck_Twitch_catch(ACTOR* actorx) {
+    Player_actor_BGcheck_common_type2(actorx);
+}
+
+static int Player_actor_MessageControl_Twitch_catch(ACTOR* actorx, GAME* game, int end_flag) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_twitch_catch_c* tc = &player->main_data.twitch_catch;
+    mMsg_Window_c* win = mMsg_Get_base_window_p();
+
+    /* Wait 42 frames for catch animation to play (same as notice_rod) */
+    if (tc->timer < 42.0f) {
+        tc->timer += 1.0f;
+        return -1;
+    }
+
+    switch (tc->msg_mode) {
+        case 0:
+            /* Request demo dialogue */
+            if (!mDemo_Check(mDemo_TYPE_REPORT, actorx)) {
+                mDemo_Request(mDemo_TYPE_REPORT, actorx, Player_actor_Twitch_catch_demo_ct);
+                tc->msg_injected = FALSE;
+            } else {
+                tc->msg_mode = 1;
+            }
+            return -1;
+
+        case 1:
+            /* Inject our custom text over the ROM message once loaded */
+            if (!tc->msg_injected && win != NULL && win->msg_data != NULL) {
+                bcopy(s_twitch_msg_buf, win->msg_data->text_buf.data, tc->msg_buf_len);
+                win->msg_data->msg_len = tc->msg_buf_len;
+                tc->msg_injected = TRUE;
+            }
+            /* Wait for message end, then dismiss */
+            if (end_flag) {
+                mMsg_Set_CancelNormalContinue(win);
+                mMsg_Unset_LockContinue(win);
+                tc->msg_mode = 2;
+            }
+            return -1;
+
+        case 2:
+            /* Wait for demo to fully close */
+            if (!mDemo_Check(mDemo_TYPE_REPORT, actorx)) {
+                tc->msg_mode = 3;
+            }
+            return -1;
+
+        default:
+            /* Done — signal exit */
+            return 1;
+    }
+}
+
+static void Player_actor_request_proc_index_fromTwitch_catch(ACTOR* actorx, GAME* game, int msg_control) {
+    if (msg_control >= 0) {
+        PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+
+        /* Directly reset priority — lookup tables don't have VER_DELUXE entries */
+        player->requested_main_index_priority = mPlayer_REQUEST_PRIORITY_0;
+        player->settled_requested_main_index_priority = TRUE;
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_1);
+    }
+}
+
+static void Player_actor_main_Twitch_catch(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_twitch_catch_c* tc = &player->main_data.twitch_catch;
+    f32 frame_calc;
+    int anim_end_flag;
+    int msg_control;
+
+    anim_end_flag = Player_actor_CulcAnimation_Twitch_catch(actorx, &frame_calc);
+    Player_actor_Movement_Twitch_catch(actorx);
+    Player_actor_Reinput_force_position_angle(actorx, game);
+    Player_actor_recover_lean_angle(actorx);
+    Player_actor_set_eye_pattern_Twitch_catch(actorx, anim_end_flag);
+    Player_actor_ObjCheck_Twitch_catch(actorx, game);
+    Player_actor_BGcheck_Twitch_catch(actorx);
+    Player_actor_Item_main(actorx, game);
+
+    /* Track display actor to player's left hand bone position. */
+    if (tc->display_actor != NULL) {
+        f32 sin_y = sin_s(actorx->shape_info.rotation.y);
+        f32 cos_y = cos_s(actorx->shape_info.rotation.y);
+
+        tc->display_actor->world.position.x = player->left_hand_pos.x + 8.0f * sin_y;
+        tc->display_actor->world.position.y = player->left_hand_pos.y;
+        tc->display_actor->world.position.z = player->left_hand_pos.z + 8.0f * cos_y;
+
+        tc->display_actor->speed = 0.0f;
+        tc->display_actor->position_speed.x = 0.0f;
+        tc->display_actor->position_speed.y = 0.0f;
+        tc->display_actor->position_speed.z = 0.0f;
+
+        if (tc->catch_type == mPlayer_TWITCH_CATCH_FISH) {
+            GYO_RELEASE_ACTOR* gyo_rel = (GYO_RELEASE_ACTOR*)tc->display_actor;
+            gyo_rel->exist_timer = 0;
+            tc->display_actor->scale.x = 0.0126f;
+            tc->display_actor->scale.y = 0.0126f;
+            tc->display_actor->scale.z = 0.0126f;
+        } else if (tc->catch_type == mPlayer_TWITCH_CATCH_BUG) {
+            /* Force visibility every frame — the insect controller
+             * (ACTOR_PART_CONTROL) runs after the player (ACTOR_PART_PLAYER)
+             * and its cull check clears NO_CULL. Re-force all critical
+             * fields so the draw func (which runs after both) sees them. */
+            aINS_INSECT_ACTOR* ins = (aINS_INSECT_ACTOR*)tc->display_actor;
+
+            tc->display_actor->state_bitfield |= (ACTOR_STATE_NO_CULL | ACTOR_STATE_NO_DRAW_WHILE_CULLED);
+            tc->display_actor->drawn = TRUE;
+            tc->display_actor->mv_proc = mActor_NONE_PROC1;
+            ins->exist_flag = TRUE;
+            ins->life_time = 216000;
+            ins->insect_flags.destruct = 0;
+            ins->alpha0 = 255;
+            ins->target_speed = 0.0f;
+            ins->speed_step = 0.0f;
+        }
+    }
+
+    msg_control = Player_actor_MessageControl_Twitch_catch(actorx, game, anim_end_flag);
+    Player_actor_request_proc_index_fromTwitch_catch(actorx, game, msg_control);
+}

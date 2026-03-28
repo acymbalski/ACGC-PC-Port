@@ -1,0 +1,101 @@
+/* Deluxe edition: Pull Cracker player action */
+
+static int Player_actor_CulcAnimation_Pull_cracker(ACTOR* actorx, f32* last_anim0_cur_frame_p) {
+    return Player_actor_CulcAnimation_Base2(actorx, last_anim0_cur_frame_p);
+}
+
+static void Player_actor_ObjCheck_Pull_cracker(ACTOR* actorx, GAME* game) {
+    Player_actor_Excute_Corect_forStand(actorx, game);
+}
+
+static void Player_actor_BGcheck_Pull_cracker(ACTOR* actorx) {
+    Player_actor_BGcheck_common_type1(actorx);
+}
+
+static void Player_actor_Movement_Pull_cracker(ACTOR* actorx, GAME* game) {
+    Player_actor_Movement_Base_Braking_common(actorx, 0.32625001f);
+}
+
+static void Player_actor_SetEffect_Pull_cracker(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    xyz_t pos;
+
+    if (Player_actor_Check_AnimationFrame(&player->keyframe0.frame_control, 19.0f)) {
+        pos.x = actorx->world.position.x;
+        pos.y = actorx->world.position.y;
+        pos.z = actorx->world.position.z;
+
+        if (eEC_CLIP != NULL) {
+            s16 attr = mCoBG_Wpos2Attribute(pos, NULL);
+
+            eEC_CLIP->effect_make_proc(eEC_EFFECT_CLACKER, pos, 2, actorx->world.angle.y,
+                                       game, RSV_NO, attr, 0);
+        }
+    }
+}
+
+static void Player_actor_ChangeItemNo_Pull_cracker(ACTOR* actorx) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+
+    if (Player_actor_Check_AnimationFrame(&player->keyframe0.frame_control, 19.0f)) {
+        Player_actor_Set_ItemNoSubmenu(EMPTY_NO);
+    }
+}
+
+static void Player_actor_SearchAnimation_Pull_cracker(ACTOR* actorx, GAME* game, f32 frame) {
+    if (!Player_actor_Check_AnimationFrame_PerfectEquel(actorx, frame)) {
+        Player_actor_SetSound_Pull_cracker(actorx);
+        Player_actor_SetEffect_Pull_cracker(actorx, game);
+        Player_actor_ChangeItemNo_Pull_cracker(actorx);
+    }
+}
+
+static void Player_actor_request_proc_index_fromPull_cracker(ACTOR* actorx, GAME* game, int end_flag) {
+    if (end_flag != 0) {
+        Player_actor_SettleRequestMainIndexPriority(actorx);
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_1);
+    }
+}
+
+static int Player_actor_request_main_pull_cracker_all(GAME* game, int priority) {
+    if (Player_actor_check_request_main_able(game, mPlayer_INDEX_PULL_CRACKER, priority)) {
+        Player_actor_request_main_index(game, mPlayer_INDEX_PULL_CRACKER, priority);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void Player_actor_setup_main_Pull_cracker(ACTOR* actorx, GAME* game) {
+    int anim1_idx;
+    int part_table_idx;
+
+    Player_actor_SetupItem_Base1(actorx, mPlayer_ANIM_GURATUKU1, -5.0f, &anim1_idx, &part_table_idx);
+    Player_actor_InitAnimation_Base2(actorx, game, mPlayer_ANIM_GURATUKU1, anim1_idx,
+                                     1.0f, 1.0f, 0.5f, -5.0f, cKF_FRAMECONTROL_STOP, part_table_idx);
+    Player_actor_setup_main_Base(actorx, game);
+}
+
+static void Player_actor_main_Pull_cracker(ACTOR* actorx, GAME* game) {
+    int end_flag;
+    f32 frame_calc;
+
+    Player_actor_Movement_Pull_cracker(actorx, game);
+    Player_actor_Reinput_force_position_angle(actorx, game);
+    end_flag = Player_actor_CulcAnimation_Pull_cracker(actorx, &frame_calc);
+    Player_actor_SearchAnimation_Pull_cracker(actorx, game, frame_calc);
+    Player_actor_recover_lean_angle(actorx);
+    Player_actor_set_tex_anime_pattern(actorx);
+    Player_actor_ObjCheck_Pull_cracker(actorx, game);
+    Player_actor_BGcheck_Pull_cracker(actorx);
+    Player_actor_Item_main(actorx, game);
+    Player_actor_request_proc_index_fromPull_cracker(actorx, game, end_flag);
+}
+
+static int Player_actor_CheckAndRequest_main_cracker_all(GAME* game, int priority) {
+    if (Player_actor_CheckController_forCracker(game)) {
+        return Player_actor_request_main_pull_cracker_all(game, priority);
+    }
+
+    return FALSE;
+}

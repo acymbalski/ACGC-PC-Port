@@ -759,14 +759,20 @@ static int makeBumpTexture(GAME_PLAY* play, GRAPH* graph1, GRAPH* graph2) {
 
     if ((GETREG(HREG, 80) != 10) || (GETREG(HREG, 85) != 0)) {
         PC_DIAG(3, "makeBumpTexture: before Actor_info_draw_actor\n");
+        play->game.doing_point_specific = 0xA0;
         Actor_info_draw_actor(play, &play->actor_info);
         PC_DIAG(3, "makeBumpTexture: Actor draw done, Camera2...\n");
+        play->game.doing_point_specific = 0xA1;
         Camera2_draw(play);
+        play->game.doing_point_specific = 0xA2;
         mMsg_Draw((GAME*)play);
+        play->game.doing_point_specific = 0xA3;
     }
 
     if ((GETREG(HREG, 80) != 10) || (GETREG(HREG, 93) != 0)) {
+        play->game.doing_point_specific = 0xA4;
         Debug_Display_output(play);
+        play->game.doing_point_specific = 0xA5;
     }
 
     if ((play->submenu.mode == mSM_MODE_PRERENDER_INIT) || (play->fb_mode == FBDEMO_MODE_CREATE)) {
@@ -817,22 +823,31 @@ static void Game_play_draw(GAME_PLAY* play) {
     }
 #endif
 
+    play->game.doing_point_specific = 0xAB;
     DisplayList_initialize(graph, fill_r, fill_g, fill_b, &play->game);
     PC_DIAG(3, "Game_play_draw: DL_init done\n");
 
     if ((GETREG(HREG, 80) != 10) || (GETREG(HREG, 82) != 0)) {
+        play->game.doing_point_specific = 0xAC;
         setupFog(play, graph);
         PC_DIAG(3, "Game_play_draw: fog done\n");
+        play->game.doing_point_specific = 0xAD;
         setupViewer(play);
         PC_DIAG(3, "Game_play_draw: viewer done\n");
+        play->game.doing_point_specific = 0xAE;
         setupViewMatrix(play, graph, graph);
         PC_DIAG(3, "Game_play_draw: viewMtx done\n");
 
+        play->game.doing_point_specific = 0xAF;
         if ((makeBumpTexture(play, graph, graph) == 1) && ((GETREG(HREG, 80) != 10) || (GETREG(HREG, 89) != 0))) {
             PC_DIAG(3, "Game_play_draw: bump done, drawing\n");
+            play->game.doing_point_specific = 0xB0;
             watch_my_step_draw(play);
+            play->game.doing_point_specific = 0xB1;
             banti_draw(play);
+            play->game.doing_point_specific = 0xB2;
             mSM_submenu_draw(&play->submenu, (GAME*)play);
+            play->game.doing_point_specific = 0xB3;
         }
     }
     if (zurumode_flag != 0) {

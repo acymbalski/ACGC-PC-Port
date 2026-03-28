@@ -1,0 +1,380 @@
+#include "ac_museum_fish_priv.h"
+
+/* Ika (squid) - expansion/contraction tentacle pulsing */
+
+void mfish_ika_normal(MUSEUM_FISH_PRIVATE_DATA* actor);
+void mfish_ika_expansion(MUSEUM_FISH_PRIVATE_DATA* actor);
+void mfish_ika_reduction(MUSEUM_FISH_PRIVATE_DATA* actor);
+void mfish_ika_turn(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game);
+void mfish_ika_move_process(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game);
+void mfish_ika_move_process_init(MUSEUM_FISH_PRIVATE_DATA* actor);
+
+void mfish_ika_reduction(MUSEUM_FISH_PRIVATE_DATA* actor) {
+    f32 speed_ratio;
+    f32 t;
+    f32 scale_target;
+    f32 ease;
+
+    speed_ratio = actor->_5E8 / MAX(actor->init_data._14 + actor->init_data._10, 0.01f);
+    t = speed_ratio * 0.5f;
+
+    actor->_622 = add_calc_short_angle2(&actor->_60C.y, actor->_612.y,
+                                        CALC_EASE2(0.3f + t), DEG2SHORT_ANGLE(3.75f), DEG2SHORT_ANGLE(0.25f));
+    add_calc_short_angle2(&actor->_618.z, actor->_622, CALC_EASE2(0.25f),
+                          DEG2SHORT_ANGLE(2.5f), DEG2SHORT_ANGLE(0.25f));
+
+    /* Wall avoidance */
+    if (actor->_62E_flags & 0x1e) {
+        if ((s16)(actor->_60C.y - actor->_62C) > 0) {
+            actor->_612.y = actor->_62C + DEG2SHORT_ANGLE(115);
+        } else {
+            actor->_612.y = actor->_62C - DEG2SHORT_ANGLE(115);
+        }
+        actor->_5F0 = actor->init_data._14 + actor->init_data._10;
+    } else if (actor->_62E_flags & 0x20) {
+        s16 esc = mfish_get_escape_angle(actor, NULL);
+        add_calc_short_angle2(&actor->_612.y, esc, CALC_EASE(0.5f),
+                              DEG2SHORT_ANGLE(15), DEG2SHORT_ANGLE(0.5f));
+    }
+
+    /* Contract tentacles: shrink scale back to normal */
+    scale_target = 0.0f;
+    ease = 0.15f;
+    add_calc(&actor->hari_scale_x, scale_target, CALC_EASE(ease), 0.02f, 0.005f);
+    add_calc(&actor->hari_scale_y, scale_target, CALC_EASE(ease), 0.02f, 0.005f);
+    add_calc2(&actor->hari_scale_z, scale_target, 0.15f, 0.01f);
+
+    /* Speed up during contraction (jet propulsion) */
+    if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.05f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.02f);
+    }
+
+    /* Check if contraction is done */
+    if (ABS(actor->hari_scale_x) < 0.01f && ABS(actor->hari_scale_y) < 0.01f) {
+        actor->hari_scale_x = 0.0f;
+        actor->hari_scale_y = 0.0f;
+        actor->hari_scale_z = 0.0f;
+        actor->_646 = 0;
+        mfish_ika_normal(actor);
+    }
+}
+
+void mfish_ika_expansion(MUSEUM_FISH_PRIVATE_DATA* actor) {
+    f32 speed_ratio;
+    f32 t;
+    f32 scale_target;
+    f32 ease;
+
+    speed_ratio = actor->_5E8 / MAX(actor->init_data._14 + actor->init_data._10, 0.01f);
+    t = speed_ratio * 0.5f;
+
+    actor->_622 = add_calc_short_angle2(&actor->_60C.y, actor->_612.y,
+                                        CALC_EASE2(0.3f + t), DEG2SHORT_ANGLE(3.75f), DEG2SHORT_ANGLE(0.25f));
+    add_calc_short_angle2(&actor->_618.z, actor->_622, CALC_EASE2(0.25f),
+                          DEG2SHORT_ANGLE(2.5f), DEG2SHORT_ANGLE(0.25f));
+
+    /* Wall avoidance */
+    if (actor->_62E_flags & 0x1e) {
+        if ((s16)(actor->_60C.y - actor->_62C) > 0) {
+            actor->_612.y = actor->_62C + DEG2SHORT_ANGLE(115);
+        } else {
+            actor->_612.y = actor->_62C - DEG2SHORT_ANGLE(115);
+        }
+        actor->_5F0 = actor->init_data._14 + actor->init_data._10;
+    } else if (actor->_62E_flags & 0x20) {
+        s16 esc = mfish_get_escape_angle(actor, NULL);
+        add_calc_short_angle2(&actor->_612.y, esc, CALC_EASE(0.5f),
+                              DEG2SHORT_ANGLE(15), DEG2SHORT_ANGLE(0.5f));
+    }
+
+    /* Expand tentacles: grow scale */
+    scale_target = 1.0f;
+    ease = 0.2f;
+    add_calc2(&actor->hari_scale_x, scale_target, ease, 0.05f);
+    add_calc2(&actor->hari_scale_y, scale_target, ease, 0.05f);
+    add_calc2(&actor->hari_scale_z, scale_target, ease, 0.05f);
+
+    /* Slow down during expansion */
+    if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.05f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.02f);
+    }
+
+    /* Check if expansion is done */
+    if (actor->hari_scale_x > 0.95f && actor->hari_scale_y > 0.95f) {
+        actor->hari_scale_x = 1.0f;
+        actor->hari_scale_y = 1.0f;
+        actor->hari_scale_z = 1.0f;
+        actor->_646 = 1;
+        mfish_ika_normal(actor);
+    }
+}
+
+void mfish_ika_normal(MUSEUM_FISH_PRIVATE_DATA* actor) {
+    actor->activityFrameCount =
+        actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+    actor->savedActivityFrameCount = actor->activityFrameCount;
+    actor->_5F0 = actor->init_data._10 + RANDOM_F(actor->init_data._14);
+    actor->currentProcess = mfish_ika_move_process;
+}
+
+void mfish_ika_turn(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    f32 speed_ratio;
+    f32 t;
+    s16 target_y;
+    s16 diff;
+
+    speed_ratio = actor->_5E8 / MAX(actor->init_data._14 + actor->init_data._10, 0.01f);
+    t = speed_ratio * 0.5f;
+
+    actor->_622 = add_calc_short_angle2(&actor->_60C.y, actor->_612.y,
+                                        CALC_EASE2(0.3f + t), DEG2SHORT_ANGLE(3.75f), DEG2SHORT_ANGLE(0.25f));
+    add_calc_short_angle2(&actor->_618.z, actor->_622, CALC_EASE2(0.25f),
+                          DEG2SHORT_ANGLE(2.5f), DEG2SHORT_ANGLE(0.25f));
+
+    /* Wall avoidance */
+    if (actor->_62E_flags & 0x1e) {
+        if ((s16)(actor->_60C.y - actor->_62C) > 0) {
+            actor->_612.y = actor->_62C + DEG2SHORT_ANGLE(115);
+        } else {
+            actor->_612.y = actor->_62C - DEG2SHORT_ANGLE(115);
+        }
+        actor->_5F0 = actor->init_data._14 + actor->init_data._10;
+    } else if (actor->_62E_flags & 0x20) {
+        s16 esc = mfish_get_escape_angle(actor, game);
+        add_calc_short_angle2(&actor->_612.y, esc, CALC_EASE(0.5f),
+                              DEG2SHORT_ANGLE(15), DEG2SHORT_ANGLE(0.5f));
+    } else if (actor->activityFrameCount < 0) {
+        f32 v = RANDOM_F(1.0f);
+        actor->activityFrameCount =
+            actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+        actor->savedActivityFrameCount = actor->activityFrameCount;
+        actor->_5F0 = actor->init_data._10 + Rnd_EX_f(actor->init_data._14);
+        if (RANDOM_F(1.0f) < 0.5f) {
+            actor->_612.y += DEG2SHORT_ANGLE((v - 0.3f) * 90.0f);
+        } else {
+            actor->_612.y -= DEG2SHORT_ANGLE((v - 0.3f) * 90.0f);
+        }
+    }
+
+    /* Speed adjustment */
+    if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.05f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.02f);
+    }
+
+    /* Expansion/contraction cycle */
+    actor->_642--;
+    if (actor->_642 <= 0) {
+        if (actor->_646 == 0) {
+            /* Was contracted, now expand */
+            actor->_642 = (s16)(RANDOM_F(30.0f) + 20.0f);
+            mfish_ika_expansion(actor);
+            return;
+        } else {
+            /* Was expanded, now contract */
+            actor->_642 = (s16)(RANDOM_F(20.0f) + 10.0f);
+            mfish_ika_reduction(actor);
+            return;
+        }
+    }
+}
+
+void mfish_ika_move_process_init(MUSEUM_FISH_PRIVATE_DATA* actor) {
+    actor->activityFrameCount =
+        actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+    actor->savedActivityFrameCount = actor->activityFrameCount;
+    actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+    actor->_642 = (s16)(RANDOM_F(40.0f) + 20.0f);
+    actor->_646 = 0;
+    actor->currentProcess = mfish_ika_move_process;
+}
+
+void mfish_ika_move_process(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    if (actor->activityFrameCount < 0) {
+        actor->activityFrameCount =
+            actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+        actor->savedActivityFrameCount = actor->activityFrameCount;
+        actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+    }
+    actor->savedActivityFrameCount = actor->activityFrameCount;
+    mfish_ika_turn(actor, game);
+}
+
+void mfish_ika_ct(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    s16 s;
+    s16 frames;
+
+    s = qrand();
+    mfish_onefish_ct(actor, game);
+    actor->_5E8 = actor->init_data._10 + RANDOM_F(actor->init_data._14);
+    actor->_5F0 = actor->_5E8;
+    actor->_60C.y = s;
+    actor->_612.y = actor->_60C.y;
+    actor->_5F4 = 0.0f;
+    actor->_5EC = 0.0f;
+    actor->_5AC = ZeroVec;
+    actor->_638 = qrand();
+    frames = actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+    actor->activityFrameCount = frames;
+    actor->savedActivityFrameCount = frames;
+    actor->_624 = 2;
+    actor->_594 = NULL;
+    actor->_598 = NULL;
+    actor->hari_scale_x = 0.0f;
+    actor->hari_scale_y = 0.0f;
+    actor->hari_scale_z = 0.0f;
+    actor->_642 = (s16)(RANDOM_F(40.0f) + 20.0f);
+    actor->_644 = 0;
+    actor->_646 = 0;
+    mfish_ika_move_process_init(actor);
+}
+
+void mfish_ika_mv(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    xyz_t p;
+    f32 angle_speed;
+
+    mfish_onefish_mv(actor, game);
+
+    /* Call current process */
+    actor->currentProcess(actor, game);
+
+    /* Angle counter for body wave */
+    angle_speed = RANDOM_F(3.0f) * actor->_5E8 * DEG2SHORT_ANGLE(1.0f);
+    actor->_618.x += (s16)angle_speed;
+
+    /* Compute vertical offset from body wave */
+    actor->_5F4 = sin_s(actor->_618.x) * 5.0f;
+
+    /* Vertical movement */
+    add_calc2(&actor->position.y, actor->_5F4 + actor->init_data._0C, 0.02f, 0.02f);
+
+    /* Approach target speed */
+    add_calc(&actor->_5F8, 0.0f, CALC_EASE(0.5f), 0.25f, 0.01f);
+
+    /* Speed calculation */
+    if (ABS(actor->_618.z) > DEG2SHORT_ANGLE(15) &&
+        ABS(actor->_622) - ABS(actor->_618.z) < 0) {
+        add_calc2(&actor->_5E8, MAX(actor->_5F0, 0.8f), 0.5f, 0.25f);
+    } else if (actor->activityFrameCount < actor->savedActivityFrameCount - 80) {
+        add_calc2(&actor->_5E8, actor->_5EC, 1.0f - actor->init_data._18, 0.0025f);
+    } else if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.01f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.02f);
+    }
+
+    /* Animation speed */
+    actor->kf.keyframe.frame_control.speed = 0.5f * 0.5f + 1.2f * actor->_5E8;
+
+    /* Velocity from speed and heading */
+    actor->_5D0.x = actor->_5E8 * sin_s(actor->_60C.y);
+    actor->_5D0.z = actor->_5E8 * cos_s(actor->_60C.y);
+
+    /* Flow vector */
+    mfish_get_flow_vec(&p, actor, game);
+    actor->position.x += actor->_5D0.x + p.x;
+    actor->position.z += actor->_5D0.z + p.z;
+
+    mfish_body_wind_anime_play(actor, game);
+    Museum_Fish_BGCheck(actor, game);
+
+    if (actor->position.y < GETREG(TAKREG, 0x47) + 55.0f - actor->init_data.ofs_y) {
+        actor->position.y = GETREG(TAKREG, 0x47) + 55.0f - actor->init_data.ofs_y;
+    }
+    actor->activityFrameCount--;
+}
+
+BOOL mfish_ika_before_disp(GAME* game, cKF_SkeletonInfo_R_c* keyframe, int joint_idx,
+                            Gfx** joint_shape, u8* joint_flags, void* arg,
+                            s_xyz* joint_rot, xyz_t* joint_pos) {
+    MUSEUM_FISH_PRIVATE_DATA* actor = (MUSEUM_FISH_PRIVATE_DATA*)arg;
+    f32 expand;
+    f32 scale;
+    f32 abs_sin;
+    f32 pulse;
+    f32 wave;
+
+    if (joint_idx == 3) {
+        int v = joint_rot->y - (actor->_618.z << 1);
+        joint_rot->y = MY_CLAMP(v, DEG2SHORT_ANGLE(-80), DEG2SHORT_ANGLE(80));
+    }
+
+    /* Tentacle pulsing animation */
+    actor->_644 += GETREG(TAKREG, 0x5D) + 335;
+
+    abs_sin = ABS(sin_s(actor->_644));
+    pulse = abs_sin * 0.3f + 1.0f;
+    expand = actor->hari_scale_x;
+
+    if (joint_idx == 0) {
+        /* Head: slight scale from expansion */
+        scale = 1.0f + expand * 0.1f * pulse;
+        Matrix_scale(scale, scale, scale, MTX_MULT);
+    } else if (joint_idx == 1) {
+        /* Upper body */
+        scale = 1.0f + expand * 0.15f * pulse;
+        Matrix_scale(scale, 1.0f, scale, MTX_MULT);
+    } else if (joint_idx == 2) {
+        /* Body: main expansion */
+        scale = 1.0f + expand * 0.25f * pulse;
+        Matrix_scale(scale, scale, scale, MTX_MULT);
+    } else if (joint_idx == 3) {
+        /* Tentacle base */
+        scale = 1.0f + expand * 0.3f * pulse;
+        Matrix_scale(scale, 1.0f + expand * 0.2f, scale, MTX_MULT);
+    } else if (joint_idx == 4) {
+        /* Tentacle tip */
+        scale = 1.0f + expand * 0.35f * pulse;
+        Matrix_scale(scale, 1.0f + expand * 0.25f, scale, MTX_MULT);
+    } else if (joint_idx == 5) {
+        /* Secondary tentacle */
+        wave = sin_s(actor->_644 + DEG2SHORT_ANGLE(90)) * 0.1f;
+        scale = 1.0f + expand * (0.2f + wave) * pulse;
+        Matrix_scale(scale, 1.0f + expand * 0.15f, scale, MTX_MULT);
+    } else if (joint_idx == 6) {
+        /* Secondary tentacle tip */
+        wave = sin_s(actor->_644 + DEG2SHORT_ANGLE(180)) * 0.1f;
+        scale = 1.0f + expand * (0.25f + wave) * pulse;
+        Matrix_scale(scale, 1.0f + expand * 0.2f, scale, MTX_MULT);
+    } else if (joint_idx == 7) {
+        /* Fin */
+        wave = sin_s(actor->_644 + DEG2SHORT_ANGLE(45)) * 0.15f;
+        scale = 1.0f + expand * (0.1f + wave);
+        Matrix_scale(scale, scale, scale, MTX_MULT);
+    } else if (joint_idx == 8) {
+        /* Fin tip */
+        wave = sin_s(actor->_644 + DEG2SHORT_ANGLE(135)) * 0.15f;
+        scale = 1.0f + expand * (0.15f + wave);
+        Matrix_scale(scale, scale, scale, MTX_MULT);
+    }
+
+    return TRUE;
+}
+
+void mfish_ika_dw(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_keyframe_c* skele;
+    Mtx* mtxp;
+
+    skele = &actor->kf;
+    if (game->frame_counter & 1) {
+        mtxp = skele->mtx[0];
+    } else {
+        mtxp = skele->mtx[1];
+    }
+
+    OPEN_DISP(game->graph);
+    Matrix_translate(actor->position.x, actor->position.y, actor->position.z, MTX_LOAD);
+    Matrix_rotateXYZ(actor->_60C.x, actor->_60C.y, actor->_60C.z, MTX_MULT);
+    Matrix_translate(0.0f, 0.0f, actor->init_data.ofs_z, MTX_MULT);
+    Matrix_scale(actor->init_data.renderScale, actor->init_data.renderScale,
+                 actor->init_data.renderScale, MTX_MULT);
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    cKF_Si3_draw_R_SV(game, &skele->keyframe, mtxp, mfish_ika_before_disp, NULL, actor);
+    CLOSE_DISP(game->graph);
+}

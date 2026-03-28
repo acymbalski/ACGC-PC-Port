@@ -153,6 +153,17 @@ enum effect_type {
     eEC_EFFECT_MAKE_HEM_KIRA,
     eEC_EFFECT_MAKE_HEM_LIGHT,
 
+#if VERSION >= VER_DELUXE
+    /* Deluxe additions */
+    eEC_EFFECT_RESETBREAK,
+    eEC_EFFECT_RESETBREAK_DUST,
+    eEC_EFFECT_RESETBREAK_PARTS,
+    eEC_EFFECT_RESETBREAK_PIECE,
+    eEC_EFFECT_SCREEN,
+    eEC_EFFECT_WATER_DROP,
+    eEC_EFFECT_NOMI,
+#endif /* VERSION >= VER_DELUXE */
+
     eEC_EFFECT_NUM
 };
 
@@ -284,6 +295,17 @@ extern eEC_PROFILE_c iam_ef_young_tree;
 extern eEC_PROFILE_c iam_ef_yukidama;
 extern eEC_PROFILE_c iam_ef_yukidaruma;
 extern eEC_PROFILE_c iam_ef_yukihane;
+
+#if VERSION >= VER_DELUXE
+/* Deluxe additions */
+extern eEC_PROFILE_c iam_ef_resetbreak;
+extern eEC_PROFILE_c iam_ef_resetbreak_dust;
+extern eEC_PROFILE_c iam_ef_resetbreak_parts;
+extern eEC_PROFILE_c iam_ef_resetbreak_piece;
+extern eEC_PROFILE_c iam_ef_screen;
+extern eEC_PROFILE_c iam_ef_water_drop;
+extern eEC_PROFILE_c iam_ef_nomi;
+#endif /* VERSION >= VER_DELUXE */
 
 enum {
     eEC_LIGHT_COLOR_DISABLED,

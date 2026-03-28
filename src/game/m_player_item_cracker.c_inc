@@ -1,0 +1,26 @@
+/* Deluxe edition: Cracker item main and draw */
+static int Player_actor_Item_main_cracker_normal(ACTOR* actor, GAME* game) {
+    return 0;
+}
+
+static void Player_actor_Item_draw_cracker(ACTOR* actor, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actor;
+    GAME_PLAY* play = (GAME_PLAY*)game;
+    ACTOR* cracker_p;
+
+    cracker_p = Actor_info_name_search(&play->actor_info, mAc_PROFILE_T_CRACKER, ACTOR_PART_BG);
+
+    if (cracker_p != NULL) {
+        TOOLS_ACTOR* tool = (TOOLS_ACTOR*)cracker_p;
+
+        Matrix_get(&tool->matrix_work);
+        tool->init_matrix = TRUE;
+
+        /* Update cracker tool actor position to match player hand */
+        cracker_p->world.position = actor->world.position;
+        cracker_p->skip_drawing = FALSE;
+    }
+
+    player->item_rod_top_pos_set = FALSE;
+    player->balloon_start_pos_set_flag = FALSE;
+}

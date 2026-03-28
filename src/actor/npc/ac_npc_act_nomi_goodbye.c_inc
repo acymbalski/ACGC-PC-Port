@@ -1,0 +1,165 @@
+/* Deluxe-only nomi_goodbye action - NPC farewell/goodbye sequence */
+#if VERSION >= VER_GAFU01_00
+
+enum {
+    aNPC_ACT_NOMI_GOODBYE_STEP_TURN,
+    aNPC_ACT_NOMI_GOODBYE_STEP_SURPRISE,
+    aNPC_ACT_NOMI_GOODBYE_STEP_WAIT,
+
+    aNPC_ACT_NOMI_GOODBYE_STEP_NUM
+};
+
+static void aNPC_act_nomi_goodbye_chg_step(NPC_ACTOR* nactorx, u8 step);
+
+// clang-format off
+static u8 aNPC_act_nomi_goodbye_act_idx[] = {
+    aNPC_ACTION_TYPE_TURN,
+    aNPC_ACTION_TYPE_GREETING0,
+    aNPC_ACTION_TYPE_WAIT,
+};
+// clang-format on
+
+/* Force call feel table: 6 personalities x 3 feelings (normal/happy/angry) */
+/* Values >= 0xFD index into voice_tbl; values < 0xFD cancel the action */
+// clang-format off
+static u8 aNPC_nomi_goodbye_force_tbl[6 * 3] = {
+    /* Lazy    */ 0xFD, 0xFD, 0xFE,
+    /* Jock    */ 0xFD, 0xFD, 0xFD,
+    /* Cranky  */ 0xFE, 0xFE, 0xFF,
+    /* Normal  */ 0xFD, 0xFE, 0xFF,
+    /* Peppy   */ 0xFD, 0xFD, 0xFD,
+    /* Snooty  */ 0xFE, 0xFF, 0xFF,
+};
+// clang-format on
+
+/* Voice-to-feel mapping: 0xFD=Happy(1), 0xFE=Normal(0), 0xFF=Sad(2) */
+// clang-format off
+static u8 aNPC_nomi_goodbye_voice_tbl[3] = { 1, 0, 2 };
+// clang-format on
+
+/* Per-personality force call timing (frames) */
+// clang-format off
+static int aNPC_nomi_goodbye_timer_tbl[6] = { 60, 45, 90, 60, 30, 75 };
+// clang-format on
+
+static void aNPC_act_nomi_goodbye_request_force_call(NPC_ACTOR* nactorx) {
+    f32 idx_f = nactorx->_9ac;
+    int idx;
+    int step = nactorx->_9b8;
+    int timer_offset;
+
+    idx = (int)idx_f;
+    timer_offset = aNPC_nomi_goodbye_timer_tbl[idx];
+    if (aNPC_set_request_act(nactorx, 3, 1, 1, NULL) == TRUE) {
+        nactorx->condition_info.talk_condition = 3;
+        nactorx->condition_info.greeting_flag = 1;
+        nactorx->condition_info.entrance_flag = 1;
+    }
+}
+
+static void aNPC_act_nomi_goodbye_surprise(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (!aNPC_act_wait(nactorx)) {
+        nactorx->movement.mv_angl = nactorx->actor_class.player_angle_y;
+        aNPC_act_nomi_goodbye_chg_step(nactorx, aNPC_ACT_NOMI_GOODBYE_STEP_SURPRISE);
+    }
+}
+
+static void aNPC_act_nomi_goodbye_turn(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (!aNPC_act_turn(nactorx)) {
+        aNPC_act_nomi_goodbye_chg_step(nactorx, aNPC_ACT_NOMI_GOODBYE_STEP_WAIT);
+    }
+}
+
+static void aNPC_act_nomi_goodbye_wait(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    u8 feel = nactorx->talk_info.feel; /* TODO: verify Deluxe offset 0x992 */
+
+    if (feel >= 0xFD) {
+        /* valid special feel - stay in wait */
+    } else {
+        aNPC_act_say_hello_chg_step(nactorx, 0); /* TODO: verify this is the correct call target */
+    }
+}
+
+static void aNPC_act_nomi_goodbye_chg_step(NPC_ACTOR* nactorx, u8 step) {
+    u8 act_type;
+
+    nactorx->action.step = step;
+    act_type = aNPC_act_nomi_goodbye_act_idx[step & 0xFF];
+    aNPC_setupAction(nactorx, act_type);
+
+    if ((step & 0xFF) == 2) {
+        f32 idx_f = nactorx->_9ac;
+        int personality = nactorx->_9b8;
+        int idx;
+        u8 voice;
+        int table_idx;
+
+        idx = (int)idx_f;
+        table_idx = idx * 3 + personality;
+        voice = aNPC_nomi_goodbye_force_tbl[table_idx];
+
+        if (voice >= 0xFD) {
+            u8 act = aNPC_nomi_goodbye_voice_tbl[voice - 0xFD];
+            aNPC_set_feel_info(nactorx, act, 0);
+        } else {
+            /* cancel */
+            aNPC_act_say_hello_chg_step(nactorx, 0); /* TODO: verify target */
+        }
+    }
+}
+
+static void aNPC_act_nomi_goodbye_main_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    // clang-format off
+    static aNPC_SUB_PROC act_proc[] = {
+        &aNPC_act_nomi_goodbye_turn,
+        &aNPC_act_nomi_goodbye_surprise,
+        &aNPC_act_nomi_goodbye_wait,
+    };
+    // clang-format on
+
+    aNPC_act_nomi_goodbye_request_force_call(nactorx);
+    nactorx->_9ac = 0.0f; /* TODO: verify */
+    (*act_proc[nactorx->action.step])(nactorx, play);
+}
+
+static void aNPC_act_nomi_goodbye_init_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    u8 looks;
+    int is_island;
+    f32 random_val;
+    int timer;
+
+    looks = 0;
+    nactorx->movement.mv_angl = nactorx->actor_class.shape_info.rotation.y;
+    nactorx->_9ac = 0.0f;
+    nactorx->_9b8 = 0; /* TODO: verify offset for arrival_area_radius equivalent */
+    nactorx->palActor = NULL; /* clear palActor at Deluxe offset 0x850 */
+
+    if (nactorx->npc_info.animal != NULL) {
+        looks = mNpc_GetLooks(nactorx->npc_info.animal->id.npc_id);
+        is_island = mNpc_CheckIslandAnimal(nactorx->npc_info.animal);
+        if (is_island == TRUE) {
+            looks += 6;
+        }
+    }
+
+    random_val = fqrand();
+    timer = (int)(6.0f * random_val);
+    nactorx->_9b8 = timer;
+    nactorx->_9ac = (f32)timer;
+
+    aNPC_act_nomi_goodbye_chg_step(nactorx, aNPC_ACT_NOMI_GOODBYE_STEP_TURN);
+}
+
+static void aNPC_act_nomi_goodbye_proc(NPC_ACTOR* nactorx, GAME_PLAY* play, int type) {
+    // clang-format off
+    static aNPC_SUB_PROC act_proc[] = {
+        &aNPC_act_nomi_goodbye_init_proc,
+        (aNPC_SUB_PROC)&none_proc1,
+        &aNPC_act_nomi_goodbye_main_proc,
+    };
+    // clang-format on
+
+    (*act_proc[type])(nactorx, play);
+}
+
+#endif /* VERSION >= VER_GAFU01_00 */

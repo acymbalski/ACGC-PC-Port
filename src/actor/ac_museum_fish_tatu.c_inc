@@ -1,0 +1,138 @@
+#include "ac_museum_fish_priv.h"
+
+/* Tatu (seahorse) - follows waypoints, bobs vertically */
+
+static xyz_t mfish_tatu_waypoints[] = {
+    { 0.0f, 80.0f, 0.0f },
+};
+
+void mfish_tatu_ct(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_onefish_ct(actor, game);
+    actor->_640 = 0;
+    actor->position.x = mfish_tatu_waypoints[actor->_640].x;
+    actor->position.y = mfish_tatu_waypoints[actor->_640].y;
+    actor->position.z = mfish_tatu_waypoints[actor->_640].z;
+    actor->_5AC.x = actor->position.x;
+    actor->_5AC.y = actor->position.y;
+    actor->_5AC.z = actor->position.z;
+    actor->_642 = actor->_60C.y;
+}
+
+void mfish_tatu_mv(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    f32 target_x;
+    f32 target_y;
+    f32 target_z;
+    f32 threshold;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    mfish_onefish_mv(actor, game);
+    mfish_body_wind_anime_play(actor, game);
+
+    /* Decrement activity frame count */
+    actor->activityFrameCount--;
+    if (actor->activityFrameCount < 0) {
+        /* New activity timer */
+        actor->activityFrameCount =
+            actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+
+        /* Randomize intermediate target */
+        actor->_5AC.x += RANDOM2_F(10.0f);
+        actor->_5AC.y += RANDOM2_F(5.0f);
+        actor->_5AC.z += RANDOM2_F(10.0f);
+
+        /* Clamp Y to water range */
+        if (actor->_5AC.z > actor->position.z + 15.0f) {
+            actor->_5AC.z = actor->position.z + 15.0f;
+        } else if (actor->_5AC.z < actor->position.z - 15.0f) {
+            actor->_5AC.z = actor->position.z - 15.0f;
+        }
+    }
+
+    /* Get waypoint target */
+    target_x = mfish_tatu_waypoints[actor->_640].x;
+    target_y = mfish_tatu_waypoints[actor->_640].y;
+    target_z = mfish_tatu_waypoints[actor->_640].z;
+
+    /* Smoothly approach intermediate target (_5AC) towards waypoint */
+    threshold = 5.0f;
+    dx = target_x - actor->_5AC.x;
+    if (ABS(dx) > threshold) {
+        if (dx > 0) {
+            actor->_5AC.x = target_x - threshold;
+        }
+    } else {
+        actor->_5AC.x = dx > 0 ? actor->_5AC.x : target_x + threshold;
+    }
+
+    dy = target_y - actor->_5AC.y;
+    if (ABS(dy) > threshold) {
+        if (dy > 0) {
+            actor->_5AC.y = target_y - threshold;
+        }
+    } else {
+        actor->_5AC.y = dy > 0 ? actor->_5AC.y : target_y + threshold;
+    }
+
+    dz = target_z - actor->_5AC.z;
+    if (ABS(dz) > threshold) {
+        if (dz > 0) {
+            actor->_5AC.z = target_z - threshold;
+        }
+    } else {
+        actor->_5AC.z = dz > 0 ? actor->_5AC.z : target_z + threshold;
+    }
+
+    /* Smoothly move position towards intermediate target */
+    add_calc2(&actor->position.x, actor->_5AC.x, 0.1f, 0.1f);
+    add_calc2(&actor->position.y, actor->_5AC.y, 0.1f, 0.1f);
+    add_calc2(&actor->position.z, actor->_5AC.z, 0.1f, 0.1f);
+
+    /* Determine facing direction */
+    if (actor->_5AC.x > actor->position.x) {
+        actor->_642 = DEG2SHORT_ANGLE(-90);
+    } else {
+        actor->_642 = DEG2SHORT_ANGLE(90);
+    }
+
+    /* Smooth heading turn */
+    add_calc_short_angle2(&actor->_60C.y, actor->_642, CALC_EASE(0.5f),
+                          DEG2SHORT_ANGLE(4), DEG2SHORT_ANGLE(0.5f));
+
+    /* Check if reached target - snap position */
+    if (add_calc_short_angle2(&actor->_60C.y, actor->_642, CALC_EASE(0.5f),
+                              DEG2SHORT_ANGLE(4), DEG2SHORT_ANGLE(0.5f)) == 0) {
+        /* Already at heading, continue approach */
+    }
+
+    /* Clamp Y position to valid water range */
+    if (actor->position.y < 60.0f) {
+        actor->position.y = 60.0f;
+    } else if (actor->position.y > 105.0f) {
+        actor->position.y = 105.0f;
+    }
+}
+
+void mfish_tatu_dw(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_keyframe_c* skele;
+    Mtx* mtxp;
+
+    skele = &actor->kf;
+    if (game->frame_counter & 1) {
+        mtxp = skele->mtx[0];
+    } else {
+        mtxp = skele->mtx[1];
+    }
+
+    OPEN_DISP(game->graph);
+    Matrix_translate(actor->position.x, actor->position.y, actor->position.z, MTX_LOAD);
+    Matrix_rotateXYZ(actor->_60C.x, actor->_60C.y, actor->_60C.z, MTX_MULT);
+    Matrix_translate(0.0f, 0.0f, actor->init_data.ofs_z, MTX_MULT);
+    Matrix_scale(actor->init_data.renderScale, actor->init_data.renderScale,
+                 actor->init_data.renderScale, MTX_MULT);
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    cKF_Si3_draw_R_SV(game, &skele->keyframe, mtxp, NULL, NULL, actor);
+    CLOSE_DISP(game->graph);
+}

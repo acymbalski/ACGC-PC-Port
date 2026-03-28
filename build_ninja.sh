@@ -80,8 +80,9 @@ elif [ "$ARCH" = "armhf" ]; then
     if [ ! -f Makefile ]; then
         echo "=== Configuring CMake (Linux ARMhf 32-bit) ==="
         cmake .. -G"Ninja" \
-            -DCMAKE_TOOLCHAIN_FILE="../cmake/Toolchain-arm-linux-gnueabihf.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="cmake/Toolchain-arm-linux-gnueabihf.cmake" \
 			-DCMAKE_PREFIX_PATH=/usr/opt/sdl2-armhf \
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
             $USE_GLES
     fi
     echo "=== Building ==="

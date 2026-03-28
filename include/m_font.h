@@ -408,6 +408,26 @@ enum {
   mFont_CONT_CODE_SET_SELECT_STRING_5,
   mFont_CONT_CODE_SET_SELECT_STRING_6,
 
+#if VERSION >= VER_DELUXE
+  mFont_CONT_CODE_NO_OP,
+  mFont_CONT_CODE_START_KEY_CHK,
+  mFont_CONT_CODE_STOP_KEY_CHK,
+  mFont_CONT_CODE_CHK_B_KEY,
+  mFont_CONT_CODE_CHK_ALL_KEY,
+  mFont_CONT_CODE_STYLE_JUMP,
+  mFont_CONT_CODE_MONUMENT_JUMP,
+  mFont_CONT_CODE_NPC_NAME_PERSONAL_PASS,
+  mFont_CONT_CODE_PUT_STRING_PL_CLOTH_TYPE,
+  mFont_CONT_CODE_PLAYER_SHIRT_SAME_JUMP,
+  mFont_CONT_CODE_MY_DESIGN_JUMP,
+  mFont_CONT_CODE_HAVE_FRUIT_JUMP,
+  mFont_CONT_CODE_NPC_TRIBE_CHECK_JUMP,
+  mFont_CONT_CODE_FRUIT_TREE_JUMP,
+  mFont_CONT_CODE_FOREIGNER_JUMP,
+  mFont_CONT_CODE_SHOP_LEVEL_JUMP,
+  mFont_CONT_CODE_HOUSE_LEVEL_JUMP,
+#endif
+
   mFont_CONT_CODE_NUM,
   mFont_CONT_CODE_END = 256
 };
@@ -547,8 +567,8 @@ extern void mFont_CulcOrthoMatrix(Mtx* m);
 extern void mFont_SetMatrix(GRAPH* graph, int mode);
 extern void mFont_UnSetMatrix(GRAPH* graph, int mode);
 extern void mFont_Main_start(GRAPH* graph);
-extern void mFontSentence_set(mFontSentence* this, u8* sentence_p, int len, u32 flags, xy_t* pos, int line_type, xy_t* scale, rgba_t* color, int se_voice_pos, u8 voice_idx, u8 voice2_idx, u8 voice3_idx, s16 voice_se_character_idx);
-extern void mFontSentence_gppDraw(mFontSentence* this, GAME* game, Gfx** gfx_pp);
+extern void mFontSentence_set(mFontSentence* sentence, u8* sentence_p, int len, u32 flags, xy_t* pos, int line_type, xy_t* scale, rgba_t* color, int se_voice_pos, u8 voice_idx, u8 voice2_idx, u8 voice3_idx, s16 voice_se_character_idx);
+extern void mFontSentence_gppDraw(mFontSentence* sentence, GAME* game, Gfx** gfx_pp);
 extern f32 mFont_SetMarkChar(GAME* game, u8 mark_type, f32 x, f32 y, int r, int g, int b, int a, int revert_flag, f32 scale_x, f32 scale_y, int mode);
 extern void mFont_gppSetRectMode(Gfx** gfx_pp);
 

@@ -1,0 +1,131 @@
+/* Deluxe edition: Throw Paper Airplane player action
+ *
+ * When the player uses a paper airplane item (ITM_PAPER_AIRPLANE, folded from
+ * stationery), this action plays a throwing animation and spawns the glider
+ * actor (ETC_AIRPLANE) in front of the player.  The item is consumed on throw.
+ */
+
+static int Player_actor_CulcAnimation_Throw_airplane(ACTOR* actorx, f32* last_anim0_cur_frame_p) {
+    return Player_actor_CulcAnimation_Base2(actorx, last_anim0_cur_frame_p);
+}
+
+static void Player_actor_ObjCheck_Throw_airplane(ACTOR* actorx, GAME* game) {
+    Player_actor_Excute_Corect_forStand(actorx, game);
+}
+
+static void Player_actor_BGcheck_Throw_airplane(ACTOR* actorx) {
+    Player_actor_BGcheck_common_type1(actorx);
+}
+
+static void Player_actor_Movement_Throw_airplane(ACTOR* actorx, GAME* game) {
+    Player_actor_Movement_Base_Braking_common(actorx, 0.32625001f);
+}
+
+/* Spawn the glider actor at the throw frame */
+static void Player_actor_SpawnAirplane_Throw_airplane(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+
+    if (Player_actor_Check_AnimationFrame(&player->keyframe0.frame_control, 15.0f)) {
+        GAME_PLAY* play = (GAME_PLAY*)game;
+        xyz_t spawn_pos;
+        f32 sin_y, cos_y;
+        s16 angle_y = actorx->shape_info.rotation.y;
+
+        /* Spawn position: 30 units in front of the player, 25 units up */
+        sin_y = sin_s(angle_y);
+        cos_y = cos_s(angle_y);
+        spawn_pos.x = actorx->world.position.x + sin_y * 30.0f;
+        spawn_pos.y = actorx->world.position.y + 25.0f;
+        spawn_pos.z = actorx->world.position.z + cos_y * 30.0f;
+
+        /* Spawn the airplane actor */
+        Actor_info_make_actor(&play->actor_info, game, mAc_PROFILE_AIRPLANE,
+                              spawn_pos.x, spawn_pos.y, spawn_pos.z,
+                              0, angle_y, 0,
+                              -1, -1, -1, ETC_AIRPLANE, 0, -1, -1);
+    }
+}
+
+/* Consume the paper airplane item at the throw frame */
+static void Player_actor_ChangeItemNo_Throw_airplane(ACTOR* actorx) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+
+    if (Player_actor_Check_AnimationFrame(&player->keyframe0.frame_control, 15.0f)) {
+        Player_actor_Set_ItemNoSubmenu(EMPTY_NO);
+    }
+}
+
+static void Player_actor_SearchAnimation_Throw_airplane(ACTOR* actorx, GAME* game, f32 frame) {
+    if (!Player_actor_Check_AnimationFrame_PerfectEquel(actorx, frame)) {
+        Player_actor_SpawnAirplane_Throw_airplane(actorx, game);
+        Player_actor_ChangeItemNo_Throw_airplane(actorx);
+    }
+}
+
+static void Player_actor_request_proc_index_fromThrow_airplane(ACTOR* actorx, GAME* game, int end_flag) {
+    if (end_flag != 0) {
+        Player_actor_SettleRequestMainIndexPriority(actorx);
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_1);
+    }
+}
+
+static int Player_actor_request_main_throw_airplane_all(GAME* game, int priority) {
+    if (Player_actor_check_request_main_able(game, mPlayer_INDEX_THROW_AIRPLANE, priority)) {
+        Player_actor_request_main_index(game, mPlayer_INDEX_THROW_AIRPLANE, priority);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void Player_actor_setup_main_Throw_airplane(ACTOR* actorx, GAME* game) {
+    int anim1_idx;
+    int part_table_idx;
+
+    /* Use the same throw animation as cracker pull (item toss) */
+    Player_actor_SetupItem_Base1(actorx, mPlayer_ANIM_GURATUKU1, -5.0f, &anim1_idx, &part_table_idx);
+    Player_actor_InitAnimation_Base2(actorx, game, mPlayer_ANIM_GURATUKU1, anim1_idx,
+                                     1.0f, 1.0f, 0.5f, -5.0f, cKF_FRAMECONTROL_STOP, part_table_idx);
+    Player_actor_setup_main_Base(actorx, game);
+}
+
+static void Player_actor_main_Throw_airplane(ACTOR* actorx, GAME* game) {
+    int end_flag;
+    f32 frame_calc;
+
+    Player_actor_Movement_Throw_airplane(actorx, game);
+    Player_actor_Reinput_force_position_angle(actorx, game);
+    end_flag = Player_actor_CulcAnimation_Throw_airplane(actorx, &frame_calc);
+    Player_actor_SearchAnimation_Throw_airplane(actorx, game, frame_calc);
+    Player_actor_recover_lean_angle(actorx);
+    Player_actor_set_tex_anime_pattern(actorx);
+    Player_actor_ObjCheck_Throw_airplane(actorx, game);
+    Player_actor_BGcheck_Throw_airplane(actorx);
+    Player_actor_Item_main(actorx, game);
+    Player_actor_request_proc_index_fromThrow_airplane(actorx, game, end_flag);
+}
+
+/* Check if the player has a paper airplane equipped and pressed A */
+static int Player_actor_CheckController_forAirplane(GAME* game) {
+    PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+    s8 kind;
+
+    if (player == NULL) {
+        return FALSE;
+    }
+
+    kind = Player_actor_Get_ItemKind(&player->actor_class, player->now_main_index);
+    if (kind == mPlayer_ITEM_KIND_PAPER_AIRPLANE && chkTrigger(BUTTON_A)) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static int Player_actor_CheckAndRequest_main_airplane_all(GAME* game, int priority) {
+    if (Player_actor_CheckController_forAirplane(game)) {
+        return Player_actor_request_main_throw_airplane_all(game, priority);
+    }
+
+    return FALSE;
+}

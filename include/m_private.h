@@ -30,6 +30,9 @@ extern "C" {
 #define mPr_FLAG_UPDATE_OUTLOOK_PENDING (1 << 9)         // player bought a new coat of roof paint to be repainted
 #define mPr_FLAG_BIRTHDAY_ACTIVE (1 << 10)       // player's birthday is active and a villager can give them a gift
 #define mPr_FLAG_TOTAKEKE_INTRODUCTION (1 << 11) // player has spoken to K.K. Slider before
+#if VERSION >= VER_DELUXE
+#define mPr_FLAG_MUSEUM_PURCHASE_INFO_SENT (1 << 18) // player has received museum fossil purchase info mail
+#endif
 
 #define mPr_MONEY_POWER_MIN -80
 
@@ -86,6 +89,9 @@ enum {
 #define mPr_FOREIGN_MAP_COUNT 8
 #define mPr_ORIGINAL_DESIGN_COUNT 8
 #define mPr_RADIOCARD_MAX_DAYS 13
+#if VERSION >= VER_DELUXE
+#define mPr_STORAGE_SLOT_COUNT 45
+#endif
 
 #define mPr_ORIGINAL_DESIGN_IDX_VALID(idx) ((idx) >= 0 && (idx) < mPr_ORIGINAL_DESIGN_COUNT)
 
@@ -260,7 +266,15 @@ struct private_s {
     /* 0x23DA */ u8 golden_items_collected;          /* bitfield tracking which golden items the player has received */
     /* 0x23DC */ u32 soncho_trophy_field1;           /* remaining tortimer event flags */
     /* 0x23E0 */ mPr_carde_data_c ecard_letter_data; /* info relating to scanned e-Card letters */
-    /* 0x2412 */ u8 unused_2412[46];
+    /* 0x2412 */ u8 unused_2412[6];
+    /* 0x2418 */ u32 shopping_card_spend_sum;
+    /* 0x241C */ u8 unused_241C[36];
+
+/* Phase 1: storage_item and skin_tone_locked NOT embedded in Private_c.
+ * Adding them here would grow Save_t and corrupt GCI offsets for all fields
+ * after private_data[4] (land_info, animals, etc.).  Use the global stubs in
+ * pc_deluxe_stubs.c / m_storage_ovl.c instead until proper save-format
+ * migration is implemented (Phase N). */
 };
 
 extern void mPr_ClearPlayerName(u8* buf);
@@ -331,6 +345,21 @@ extern void mPr_RandomSetPlayerData_title_demo();
 extern void mPr_PrintMapInfo_debug(gfxprint_t* gfxprint);
 
 extern Private_c g_foreigner_private;
+
+extern void mPr_ResetShoppingCardSpendSum(void);
+extern u32 mPr_GetPossessionBells(void);
+extern u32 mPr_GetFreeSpaceForBells(void);
+extern u32 mPr_GetAmountForMoneyItem(mActor_name_t item);
+extern mActor_name_t mPr_GetMoneyItemForAmount(u32 amount);
+extern int mPr_GivePossessionBells(u32 amount);
+extern int mPr_TakePossessionBellsNew(u32 amount);
+
+#if VERSION >= VER_DELUXE
+/* Phase 1 stubs: storage and skin-tone data live here, NOT in Private_c,
+ * to avoid growing Save_t and corrupting GCI load offsets. */
+extern mActor_name_t g_dlx_storage_item[mPr_STORAGE_SLOT_COUNT];
+extern BOOL g_dlx_skin_tone_locked;
+#endif
 
 #ifdef __cplusplus
 }

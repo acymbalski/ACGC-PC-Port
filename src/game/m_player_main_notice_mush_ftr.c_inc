@@ -1,0 +1,217 @@
+/* Deluxe edition: Notice mushroom furniture player action */
+
+static void Player_actor_Notice_mush_ftr_demo_ct(ACTOR* actorx);
+
+static int Player_actor_request_main_notice_mush_ftr(GAME* game, const xyz_t* pos, u16 item_no, u16 ftr_no,
+                                                      u8 block_x, int prio_level) {
+    if (Player_actor_check_request_main_able(game, mPlayer_INDEX_NOTICE_MUSH_FTR, prio_level)) {
+        PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+        mPlayer_request_notice_mush_ftr_c* req = &player->requested_main_index_data.notice_mush_ftr;
+
+        req->pos = *pos;
+        req->item_no = item_no;
+        req->ftr_no = ftr_no;
+        req->block_x = block_x;
+        req->priority = prio_level;
+
+        Player_actor_request_main_index(game, mPlayer_INDEX_NOTICE_MUSH_FTR, prio_level);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void Player_actor_setup_main_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+    mPlayer_request_notice_mush_ftr_c* req = &player->requested_main_index_data.notice_mush_ftr;
+
+    main_data->msg_mode = 0;
+    main_data->item_no = req->item_no;
+    main_data->ftr_no = req->ftr_no;
+    main_data->pos = req->pos;
+    main_data->block_x = req->block_x;
+    main_data->timer = 0;
+
+    Player_actor_InitAnimation_Base2(actorx, game, mPlayer_ANIM_GET_T2, mPlayer_ANIM_GET_T2,
+                                     1.0f, 1.0f, 0.5f, -3.0f, 0, 0);
+    Player_actor_setup_main_Base(actorx, game);
+    mBGMPsComp_make_ps_demo(0x28, 0x168);
+}
+
+static void Player_actor_settle_main_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    mBGMPsComp_delete_ps_demo(0x28, 0x168);
+}
+
+static void Player_actor_Movement_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+    s16 target_angle;
+
+    target_angle = search_position_angleY(&actorx->world.position, &main_data->pos);
+    add_calc_short_angle2(&actorx->shape_info.rotation.y, target_angle, 1.0f - sqrtf(0.5f), 2500, 50);
+    actorx->world.angle.y = actorx->shape_info.rotation.y;
+    Player_actor_Movement_Base_Braking_common(actorx, 0.32625001f);
+}
+
+static void Player_actor_Set_Item_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+    cKF_SkeletonInfo_R_c* kf0_p = &player->keyframe0;
+    f32 speed = kf0_p->frame_control.speed;
+
+    main_data->timer++;
+    if ((f32)main_data->timer < speed) {
+        Player_actor_Set_ItemNoSubmenu(EMPTY_NO);
+    }
+}
+
+static void Player_actor_set_eye_pattern_Notice_mush_ftr(ACTOR* actorx, int end_flag) {
+    if (end_flag) {
+        Player_actor_set_eye_pattern_normal(actorx);
+    } else {
+        Player_actor_set_tex_anime_pattern(actorx);
+    }
+}
+
+static int Player_actor_CulcAnimation_Notice_mush_ftr(ACTOR* actorx, f32* last_anim0_cur_frame_p) {
+    return Player_actor_CulcAnimation_Base2(actorx, last_anim0_cur_frame_p);
+}
+
+static void Player_actor_ObjCheck_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    Player_actor_Excute_Corect_forStand(actorx, game);
+}
+
+static void Player_actor_BGcheck_Notice_mush_ftr(ACTOR* actorx) {
+    Player_actor_BGcheck_common_type1(actorx);
+}
+
+static u16 Player_actor_Notice_mush_ftr_GetMsgNoFromItem(u16 ftr_no) {
+    static u16 mush_ftr_msg_table[][2] = {
+        { 0x2003, 0x17B5 },
+        { 0x2004, 0x17B6 },
+    };
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        if (mush_ftr_msg_table[i][0] == ftr_no) {
+            return mush_ftr_msg_table[i][1];
+        }
+    }
+
+    return 0x15;
+}
+
+static void Player_actor_Notice_mush_ftr_demo_ct(ACTOR* actorx) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+    mMsg_Window_c* win = mMsg_Get_base_window_p();
+    u8 name_buf[mIN_ITEM_NAME_LEN];
+    u16 msg_no;
+    rgba_t color;
+
+    mIN_copy_name_str(name_buf, main_data->item_no);
+    mMsg_Set_item_str_art(win, mMsg_ITEM_STR0, name_buf, mIN_ITEM_NAME_LEN,
+                          mIN_get_item_article(main_data->item_no));
+
+    msg_no = Player_actor_Notice_mush_ftr_GetMsgNoFromItem(main_data->ftr_no);
+
+    mDemo_Set_msg_num(msg_no);
+    mDemo_Set_talk_display_name(FALSE);
+    mDemo_Set_camera(CAMERA2_PROCESS_ITEM);
+    mDemo_Set_ListenAble();
+    mMsg_Set_LockContinue(win);
+
+    color.r = 0xB9;
+    color.g = 0xF5;
+    color.b = 0x50;
+    color.a = 0xFF;
+    mDemo_Set_talk_window_color(&color);
+}
+
+static int Player_actor_MessageControl_Notice_mush_ftr(ACTOR* actorx, GAME* game, int end_flag) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+    mMsg_Window_c* win = mMsg_Get_base_window_p();
+    int* state_p = &main_data->msg_mode;
+
+    switch (*state_p) {
+        case 0:
+            if (!mDemo_Check(mDemo_TYPE_REPORT, actorx)) {
+                mDemo_Request(mDemo_TYPE_REPORT, actorx, &Player_actor_Notice_mush_ftr_demo_ct);
+            } else {
+                *state_p = 1;
+            }
+            return 0;
+
+        case 1:
+            if (end_flag && mMsg_Check_MainNormalContinue(win)) {
+                if (main_data->block_x == 0) {
+                    mMsg_Set_CancelNormalContinue(win);
+                    *state_p = 2;
+                } else {
+                    mMsg_Set_continue_msg_num(win, 0x17B2);
+                    *state_p = 3;
+                }
+                mMsg_Unset_LockContinue(win);
+            }
+            return 0;
+
+        case 2:
+            if (!mDemo_Check(mDemo_TYPE_REPORT, actorx)) {
+                *state_p = 4;
+            }
+            return 0;
+
+        case 3:
+            if (!mMsg_Check_MainNormal(win)) {
+                *state_p = 4;
+            }
+            return 0;
+
+        default:
+            return 1;
+    }
+}
+
+static void Player_actor_request_proc_index_fromNotice_mush_ftr(ACTOR* actorx, GAME* game, int msg_control) {
+    if (msg_control != 0) {
+        PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+        mPlayer_main_notice_mush_ftr_c* main_data = &player->main_data.notice_mush_ftr;
+
+        Player_actor_SettleRequestMainIndexPriority(actorx);
+
+        if (main_data->block_x != 0) {
+            int ut_x;
+            int ut_z;
+
+            if (mFI_Wpos2UtNum(&ut_x, &ut_z, main_data->pos)) {
+                if (Common_Get(clip).bg_item_clip != NULL &&
+                    Common_Get(clip).bg_item_clip->player_drop_entry_proc != NULL) {
+                    Common_Get(clip).bg_item_clip->player_drop_entry_proc(game, main_data->item_no,
+                                                                          ut_x, ut_z, mCoBG_LAYER0);
+                }
+            }
+        }
+
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_34);
+    }
+}
+
+static void Player_actor_main_Notice_mush_ftr(ACTOR* actorx, GAME* game) {
+    f32 frame_calc;
+    int end_flag;
+    int msg_cntrl;
+
+    Player_actor_Movement_Notice_mush_ftr(actorx, game);
+    end_flag = Player_actor_CulcAnimation_Notice_mush_ftr(actorx, &frame_calc);
+    Player_actor_Set_Item_Notice_mush_ftr(actorx, game);
+    Player_actor_Reinput_force_position_angle(actorx, game);
+    Player_actor_recover_lean_angle(actorx);
+    Player_actor_set_eye_pattern_Notice_mush_ftr(actorx, end_flag);
+    Player_actor_ObjCheck_Notice_mush_ftr(actorx, game);
+    Player_actor_BGcheck_Notice_mush_ftr(actorx);
+    Player_actor_Item_main(actorx, game);
+    msg_cntrl = Player_actor_MessageControl_Notice_mush_ftr(actorx, game, end_flag);
+    Player_actor_request_proc_index_fromNotice_mush_ftr(actorx, game, msg_cntrl);
+}

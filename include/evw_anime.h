@@ -77,6 +77,10 @@ typedef struct evw_anime_s {
 
 extern void Evw_Anime_Set(GAME_PLAY* play, EVW_ANIME_DATA* evw_anime_data);
 
+#if VERSION >= VER_DELUXE
+extern void Evw_Anime_Set_Param(GAME_PLAY* play, EVW_ANIME_DATA* evw_anime_data, u32 frame);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

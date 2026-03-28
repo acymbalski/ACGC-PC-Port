@@ -1,0 +1,245 @@
+/* Dung beetle (fun) museum insect - Deluxe edition */
+extern Gfx ef_shadow_insect_modelT[];
+
+static const xyz_t fun_base_pos = { 280.f, 45.f, 400.f };
+
+static const f32 fun_wait_range_tbl[3] = { 300.f, 200.f, 100.f };
+static const f32 fun_wait_base_tbl[3] = { 100.f, 100.f, 100.f };
+
+static const f32 fun_move_range_tbl[3] = { 560.f, 400.f, 300.f };
+static const f32 fun_move_base_tbl[3] = { 40.f, 40.f, 40.f };
+
+static void mi_fun_anime_proc(MUSEUM_INSECT_PRIVATE_DATA* actor) {
+    actor->_7E++;
+    if (actor->_7E >= 8) {
+        actor->_7E = 0;
+        if (actor->_7C == 0) {
+            actor->_7C = 1;
+        } else {
+            actor->_7C = 0;
+        }
+    }
+}
+
+static void mi_fun_roll_mtx_to_s_xyz(MUSEUM_INSECT_PRIVATE_DATA* actor, s16 angle) {
+    xyz_t axis;
+    MtxF mtx;
+    s_xyz rot;
+
+    axis.x = sin_s(actor->_68.y);
+    axis.y = 0.f;
+    axis.z = -cos_s(actor->_68.y);
+
+    Matrix_RotateVector(angle, &axis, 0);
+    Matrix_rotateXYZ(actor->_72, actor->_74, actor->_76, 1);
+
+    Matrix_get(&mtx);
+
+    rot.x = actor->_72;
+    rot.y = actor->_74;
+    rot.z = actor->_76;
+    Matrix_to_rotate2_new(&mtx, &rot, 0);
+
+    actor->_72 = rot.x;
+    actor->_74 = rot.y;
+    actor->_76 = rot.z;
+}
+
+static void mi_fun_setupAction(MUSEUM_INSECT_PRIVATE_DATA* actor, int r4, GAME* game);
+
+static void mi_fun_wait_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    actor->_6E = (s16)(RANDOM_F(fun_wait_range_tbl[actor->_7A]) + fun_wait_base_tbl[actor->_7A]);
+    if (actor->_8E == 0) {
+        actor->_6E *= 3;
+    }
+}
+
+static void mi_fun_wait(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    add_calc(&actor->_58, 0.f, CALC_EASE(0.1f), 0.25f, 0.05f);
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        mi_fun_setupAction(actor, 1, game);
+    }
+}
+
+static void mi_fun_move_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    actor->_6E = (s16)(RANDOM_F(fun_move_range_tbl[actor->_7A]) + fun_move_base_tbl[actor->_7A]);
+}
+
+static void mi_fun_move(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    f32 dist;
+    xyz_t diff;
+    s16 target_angle;
+    s16 roll_angle;
+
+    mi_fun_anime_proc(actor);
+
+    actor->_34.x = actor->_40 * sin_s(actor->_68.y);
+    actor->_34.z = actor->_40 * cos_s(actor->_68.y);
+    xyz_t_add(&actor->_1C, &actor->_34, &actor->_1C);
+
+    minsect_garden_BGCheck(actor, 500.f, 350.f);
+    minsect_tree_ObjCheck(actor);
+    minsect_rock_ObjCheck(actor);
+
+    if (actor->_8C & 0x1e) {
+        actor->_70 += (s16)DEG2SHORT_ANGLE2(RANDOM2_F(120.f));
+        actor->_6E = (s16)RANDOM_F(60.f);
+    }
+
+    xyz_t_sub(&fun_base_pos, &actor->_1C, &diff);
+    dist = SQ(diff.x) + SQ(diff.z);
+    if (dist > SQ(80.f)) {
+        target_angle = atans_table(diff.z, diff.x);
+        add_calc_short_angle2(&actor->_68.y, target_angle, CALC_EASE2(0.3f), DEG2SHORT_ANGLE(2.5f),
+                              DEG2SHORT_ANGLE(0.25f));
+    } else {
+        add_calc_short_angle2(&actor->_68.y, actor->_70, CALC_EASE2(0.3f), DEG2SHORT_ANGLE(2.5f),
+                              DEG2SHORT_ANGLE(0.25f));
+    }
+
+    actor->_78--;
+    if (actor->_78 < 0) {
+        actor->_70 += (s16)DEG2SHORT_ANGLE2(RANDOM2_F(120.f));
+        actor->_78 = (s16)RANDOM_F(60.f) + 20;
+    }
+
+    roll_angle = (s16)(actor->_40 * 300.f);
+    mi_fun_roll_mtx_to_s_xyz(actor, roll_angle);
+
+    add_calc(&actor->_58, 1.f, CALC_EASE(0.1f), 0.25f, 0.05f);
+
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        mi_fun_setupAction(actor, 0, game);
+    }
+}
+
+static void mi_fun_setupAction(MUSEUM_INSECT_PRIVATE_DATA* actor, int r4, GAME* game) {
+    static PRIV_INSECT_PROCESS init_proc[2] = { mi_fun_wait_init, mi_fun_move_init };
+    static PRIV_INSECT_PROCESS move_proc[2] = { mi_fun_wait, mi_fun_move };
+    actor->_04 = move_proc[r4];
+    init_proc[r4](actor, game);
+}
+
+void minsect_fun_ct(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    actor->_28 = fun_base_pos;
+    actor->_1C = fun_base_pos;
+
+    actor->_70 = (s16)(RANDOM_F(3.f));
+    if (actor->_70 < 0) {
+        actor->_70 = 0;
+    } else if (actor->_70 > 2) {
+        actor->_70 = 2;
+    }
+
+    actor->_78 = (s16)(RANDOM_F(2.f) * RANDOM_F(180.f));
+    mi_fun_setupAction(actor, 1, game);
+
+    actor->_68 = ZeroSVec;
+    actor->_68.y = qrand();
+    actor->_34 = ZeroVec;
+    actor->_44 = ZeroVec;
+    actor->_40 = RANDOM_F(0.1f) + 0.065f;
+    actor->_58 = 0.f;
+    actor->_72 = 0;
+    actor->_74 = 0;
+    actor->_76 = 0;
+    actor->_7C = 0;
+    actor->_7E = 0;
+
+    switch (actor->_00) {
+        case 0x2a:
+            actor->_7A = 0;
+            break;
+        case 0x2b:
+            actor->_7A = 1;
+            break;
+        default:
+            actor->_7A = 2;
+            break;
+    }
+}
+
+void minsect_fun_mv(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 roll_speed;
+
+    actor->_8E = get_now_mind_flag(actor, game);
+    actor->_04(actor, game);
+
+    roll_speed = (s16)(RANDOM_F(1.f) * 0.5f * actor->_58);
+    mi_fun_roll_mtx_to_s_xyz(actor, roll_speed);
+}
+
+void minsect_fun_dw(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    GAME_PLAY* play = (GAME_PLAY*)game;
+    u8 shadow_alpha;
+    f32 ball_y;
+    f32 shadow_scale;
+
+    _texture_z_light_fog_prim(game->graph);
+    OPEN_DISP(game->graph);
+
+    /* Draw the ball at the beetle's body position */
+    Matrix_translate(actor->_28.x, actor->_28.y, actor->_28.z, MTX_LOAD);
+    {
+        f32 s = 0.01f;
+        f32 h = 2.f;
+        Matrix_translate(0.f, h, 0.f, MTX_MULT);
+        Matrix_scale(s, s, s, MTX_MULT);
+    }
+    Matrix_rotateXYZ(actor->_72, actor->_74, actor->_76, MTX_MULT);
+
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gDPSetEnvColor(NEXT_POLY_OPA_DISP, 0, 0xff, 0x9b, 0xff);
+    gSPDisplayList(NEXT_POLY_OPA_DISP, minsect_mdl[actor->_00][actor->_70]);
+
+    CLOSE_DISP(game->graph);
+
+    /* Draw the insect body at walk position */
+    _texture_z_light_fog_prim(game->graph);
+    OPEN_DISP(game->graph);
+
+    Matrix_translate(actor->_1C.x, actor->_1C.y, actor->_1C.z, MTX_LOAD);
+    {
+        f32 y = (f32)GETREG(NMREG, 0x15) * 0.1f + 1.5f;
+        Matrix_translate(0.f, y, 0.f, MTX_MULT);
+    }
+    Matrix_rotateXYZ(actor->_68.x, actor->_68.y, actor->_68.z, MTX_MULT);
+    Matrix_scale(actor->_14, actor->_14, actor->_14, MTX_MULT);
+    Matrix_rotateXYZ(0, (s16)DEG2SHORT_ANGLE2(180), 0, MTX_MULT);
+
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gDPSetEnvColor(NEXT_POLY_OPA_DISP, 0, 0xff, 0x9b, 0xff);
+    gSPDisplayList(NEXT_POLY_OPA_DISP, minsect_mdl[actor->_00][actor->_7C]);
+
+    minsect_draw_shadow(actor, game);
+    CLOSE_DISP(game->graph);
+
+    /* Draw ball shadow */
+    {
+        f32 v;
+        f32 v1;
+        u8 alpha;
+        u8 shadow;
+
+        shadow = play->kankyo.shadow_alpha;
+        v1 = 1.f + (GETREG(TAKREG, 0x2b) * 0.1f);
+        v = 100.f - (actor->_28.y - 45.f);
+        alpha = (int)(v * v1 + 40.0f + GETREG(TAKREG, 0x2c));
+        alpha = (alpha * shadow) >> 8;
+
+        shadow_scale = (GETREG(TAKREG, 0x28) * 0.001f + 0.005f);
+        shadow_scale *= minsect_shadow_scale_tbl[(int)actor->_00];
+
+        Matrix_translate(actor->_28.x, 45.f, actor->_28.z, MTX_LOAD);
+        Matrix_scale(shadow_scale, shadow_scale, shadow_scale, MTX_MULT);
+        _texture_z_light_fog_prim_shadow(game->graph);
+
+        OPEN_SHADOW_DISP(game->graph);
+        gDPSetPrimColor(SHADOW_DISP++, 0, 255, 0, 0, 0, alpha);
+        gSPMatrix(SHADOW_DISP++, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList(SHADOW_DISP++, &ef_shadow_insect_modelT);
+        CLOSE_SHADOW_DISP(game->graph);
+    }
+}

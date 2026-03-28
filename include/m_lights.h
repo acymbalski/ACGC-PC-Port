@@ -67,6 +67,7 @@ typedef void (*light_P_point_proc)(LightsN*, LightParams*, xyz_t*);
 
 extern void Light_point_ct(Lights* lights, s16 x, s16 y, s16 z, u8 r, u8 g, u8 b, s16 radius);
 extern void Light_diffuse_ct(Lights* lights, s8 x, s8 y, s8 z, u8 r, u8 g, u8 b);
+extern void Light_diffuse_set(Lights* lights, u8 r, u8 g, u8 b, s16 x, s16 y, s16 z);
 extern void LightsN_disp_BG(LightsN* lights, GRAPH* graph);
 extern void LightsN_disp(LightsN* lights, GRAPH* graph);
 extern void LightsN_list_check(LightsN* lights, Light_list* node, xyz_t* pos);

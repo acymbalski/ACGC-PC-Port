@@ -1,0 +1,60 @@
+#include "ac_museum_fish_priv.h"
+
+static xyz_t mfish_tako_base_pos = { 0.0f, 80.0f, 0.0f };
+
+void mfish_tako_ct(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_onefish_ct(actor, game);
+}
+
+void mfish_tako_mv(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    xyz_t target;
+
+    target = mfish_tako_base_pos;
+    mfish_onefish_mv(actor, game);
+    if (actor->objchk_pos.y < 55.0f) {
+        actor->objchk_pos.y = 55.0f;
+    }
+    mfish_body_wind_anime_play(actor, game);
+}
+
+void mfish_tako_dw(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_keyframe_c* skele;
+    Mtx* mtxp;
+    GRAPH* gfx;
+    f32 scale;
+    Gfx* dl;
+
+    skele = &actor->kf;
+    scale = (f32)GETREG(TAKREG, 0x59) * 0.01f + actor->init_data.renderScale;
+    if (game->frame_counter & 1) {
+        mtxp = skele->mtx[0];
+    } else {
+        mtxp = skele->mtx[1];
+    }
+    gfx = game->graph;
+
+    OPEN_DISP(gfx);
+    Matrix_translate(actor->objchk_pos.x, actor->objchk_pos.y, actor->objchk_pos.z, MTX_LOAD);
+    Matrix_rotateXYZ(actor->_60C.x, actor->_60C.y, actor->_60C.z, MTX_MULT);
+    Matrix_translate(0.0f, 0.0f, actor->init_data.ofs_z, MTX_MULT);
+    Matrix_scale(scale, scale, scale, MTX_MULT);
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(gfx),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    cKF_Si3_draw_R_SV(game, &skele->keyframe, mtxp, NULL, NULL, actor);
+    CLOSE_DISP(gfx);
+}
+
+void mfish_takotubo_dw(GAME* game) {
+    GRAPH* gfx;
+    f32 scale;
+
+    scale = (f32)GETREG(TAKREG, 0x59) * 0.01f + 0.01f;
+    gfx = game->graph;
+
+    OPEN_DISP(gfx);
+    Matrix_translate(0.0f, 0.0f, 0.0f, MTX_LOAD);
+    Matrix_scale(scale, scale, scale, MTX_MULT);
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(gfx),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    CLOSE_DISP(gfx);
+}

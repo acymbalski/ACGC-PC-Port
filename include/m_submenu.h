@@ -95,6 +95,12 @@ enum submenu_overlay {
     mSM_OVL_PASSWORDMAKE,
     mSM_OVL_PASSWORDCHK,
 
+#if VERSION >= VER_DELUXE
+    mSM_OVL_SKINTONE,
+    mSM_OVL_STORAGE,
+    mSM_OVL_ORDINANCE,
+#endif
+
     mSM_OVL_NUM
 };
 
@@ -226,6 +232,13 @@ extern int mSM_check_open_inventory_itemlist(int type, int param_2);
 extern void mSM_Object_Exchange_keep_new_Menu(GAME_PLAY* play);
 extern u8* mSM_Get_ground_tex_p(GAME_PLAY* play);
 extern u16* mSM_Get_ground_pallet_p(GAME_PLAY* play);
+extern void mSM_quick_save(GAME_PLAY* play);
+
+#if VERSION >= VER_DELUXE
+extern int mSM_check_open_FG(GAME_PLAY* play);
+extern void mSM_submenu_restore_door_data(void);
+extern void mSM_extMemberInit(Submenu* submenu);
+#endif
 
 #ifdef __cplusplus
 }

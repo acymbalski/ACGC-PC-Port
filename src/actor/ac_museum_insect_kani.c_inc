@@ -1,0 +1,480 @@
+/* Hermit crab (kani) museum insect - Deluxe edition */
+extern Gfx ef_shadow_insect_modelT[];
+
+static const xyz_t kani_base_pos[3] = {
+    { 300.f, 47.f, 150.f },
+    { 200.f, 47.f, 200.f },
+    { 350.f, 47.f, 250.f }
+};
+
+static const xyz_t kani_area_vtx_a[8] = {
+    { 130.f, 45.f, 120.f }, { 430.f, 45.f, 120.f }, { 430.f, 45.f, 280.f }, { 130.f, 45.f, 280.f },
+    { 130.f, 45.f, 360.f }, { 430.f, 45.f, 360.f }, { 430.f, 45.f, 520.f }, { 130.f, 45.f, 520.f }
+};
+
+static const xyz_t kani_area_vtx_b[8] = {
+    { 150.f, 45.f, 140.f }, { 410.f, 45.f, 140.f }, { 410.f, 45.f, 260.f }, { 150.f, 45.f, 260.f },
+    { 150.f, 45.f, 380.f }, { 410.f, 45.f, 380.f }, { 410.f, 45.f, 500.f }, { 150.f, 45.f, 500.f }
+};
+
+static const xyz_t kani_area_vtx_c[8] = {
+    { 170.f, 45.f, 160.f }, { 390.f, 45.f, 160.f }, { 390.f, 45.f, 240.f }, { 170.f, 45.f, 240.f },
+    { 170.f, 45.f, 400.f }, { 390.f, 45.f, 400.f }, { 390.f, 45.f, 480.f }, { 170.f, 45.f, 480.f }
+};
+
+static const xyz_t kani_area_vtx_d[4] = {
+    { 190.f, 50.f, 130.f }, { 370.f, 50.f, 130.f }, { 370.f, 50.f, 270.f }, { 190.f, 50.f, 270.f }
+};
+
+static const xyz_t kani_area_vtx_e[4] = {
+    { 190.f, 50.f, 370.f }, { 370.f, 50.f, 370.f }, { 370.f, 50.f, 510.f }, { 190.f, 50.f, 510.f }
+};
+
+static const xyz_t kani_area_vtx_f[4] = {
+    { 210.f, 52.f, 150.f }, { 350.f, 52.f, 150.f }, { 350.f, 52.f, 250.f }, { 210.f, 52.f, 250.f }
+};
+
+static const xyz_t kani_area_vtx_g[4] = {
+    { 210.f, 52.f, 390.f }, { 350.f, 52.f, 390.f }, { 350.f, 52.f, 490.f }, { 210.f, 52.f, 490.f }
+};
+
+static const xyz_t kani_area_vtx_h[4] = {
+    { 230.f, 54.f, 170.f }, { 330.f, 54.f, 170.f }, { 330.f, 54.f, 230.f }, { 230.f, 54.f, 230.f }
+};
+
+static const f32 kani_wait_range_tbl[3] = { 300.f, 200.f, 100.f };
+static const f32 kani_wait_base_tbl[3] = { 100.f, 100.f, 100.f };
+
+static const f32 kani_move_range_tbl[3] = { 560.f, 400.f, 300.f };
+static const f32 kani_move_base_tbl[3] = { 40.f, 40.f, 40.f };
+
+static int kani_idx_tbl[5] = { 0x2c, 0x2d, 0x2e, 0x2f, 0x30 };
+
+static void mi_kani_appear_from_shell(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_appear_from_shell_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_camouflage(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_camouflage_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_into_shell(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_into_shell_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+}
+
+static void mi_kani_direction_change(MUSEUM_INSECT_PRIVATE_DATA* actor) {
+    if (actor->_00 == 0x2f) {
+        return;
+    }
+    if (actor->_78 == 1) {
+        actor->_78 = -1;
+    } else {
+        actor->_78 = 1;
+    }
+}
+
+static void mi_kani_anime_proc(MUSEUM_INSECT_PRIVATE_DATA* actor) {
+    actor->_76++;
+    if (actor->_76 >= 8) {
+        actor->_76 = 0;
+        if (actor->_74 == 0) {
+            actor->_74 = 1;
+        } else {
+            actor->_74 = 0;
+        }
+    }
+}
+
+static f32 mi_kani_get_pos_y(const xyz_t* pos) {
+    xyz_t tri_a;
+    xyz_t tri_b;
+    xyz_t tri_c;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 d;
+    f32 result;
+
+    tri_a = kani_base_pos[0];
+    tri_b = kani_base_pos[1];
+    tri_c = kani_base_pos[2];
+
+    nx = 0.f;
+    ny = 0.f;
+    nz = 0.f;
+    d = 0.f;
+    Math3DPlane(&tri_a, &tri_b, &tri_c, &nx, &ny, &nz, &d);
+    if (ny != 0.f) {
+        result = -(nz * pos->x + nx * pos->z + d) / ny;
+    } else {
+        result = 0.f;
+    }
+    return 45.f + result;
+}
+
+static void mi_kani_dug_effect(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 random_angle;
+
+    random_angle = (s16)(RANDOM_F(DEG2SHORT_ANGLE2(360.f)));
+    mi_kani_get_pos_y(&actor->_1C);
+    random_angle = (s16)(random_angle | 0x4000);
+    Common_Get(clip.effect_clip)->effect_make_proc(0x54, actor->_1C, 2, random_angle, game, 0xffff, 0, 0);
+}
+
+void minsect_kani_area_check(MUSEUM_INSECT_PRIVATE_DATA* actor, const xyz_t* area_vtx) {
+    xyz_t vtx_a0;
+    xyz_t vtx_a1;
+    xyz_t vtx_a2;
+    xyz_t vtx_a3;
+    xyz_t vtx_b0;
+    xyz_t vtx_b1;
+    xyz_t vtx_b2;
+    xyz_t vtx_b3;
+    xyz_t vtx_c0;
+    xyz_t vtx_c1;
+    xyz_t vtx_c2;
+    xyz_t vtx_c3;
+
+    vtx_a0 = kani_area_vtx_a[0];
+    vtx_a1 = kani_area_vtx_a[1];
+    vtx_a2 = kani_area_vtx_a[2];
+    vtx_a3 = kani_area_vtx_a[3];
+    vtx_b0 = kani_area_vtx_b[0];
+    vtx_b1 = kani_area_vtx_b[1];
+    vtx_b2 = kani_area_vtx_b[2];
+    vtx_b3 = kani_area_vtx_b[3];
+    vtx_c0 = kani_area_vtx_c[0];
+    vtx_c1 = kani_area_vtx_c[1];
+    vtx_c2 = kani_area_vtx_c[2];
+    vtx_c3 = kani_area_vtx_c[3];
+
+    if (actor->_00 == 0x2f) {
+        vtx_a0 = area_vtx[0];
+        vtx_a1 = area_vtx[1];
+        vtx_a2 = area_vtx[2];
+        vtx_a3 = area_vtx[3];
+        vtx_b0 = area_vtx[0];
+        vtx_b1 = area_vtx[1];
+        vtx_b2 = area_vtx[2];
+        vtx_b3 = area_vtx[3];
+        vtx_c0 = area_vtx[0];
+        vtx_c1 = area_vtx[1];
+        vtx_c2 = area_vtx[2];
+        vtx_c3 = area_vtx[3];
+    }
+
+    if (actor->_1C.x < vtx_a0.x) {
+        actor->_1C.x = vtx_a0.x;
+        actor->_8C |= 2;
+    }
+    if (actor->_1C.x > vtx_a1.x) {
+        actor->_1C.x = vtx_a1.x;
+        actor->_8C |= 4;
+    }
+    if (actor->_1C.z < vtx_a0.z) {
+        actor->_1C.z = vtx_a0.z;
+        actor->_8C |= 8;
+    }
+    if (actor->_1C.z > vtx_a2.z) {
+        actor->_1C.z = vtx_a2.z;
+        actor->_8C |= 0x10;
+    }
+}
+
+static BOOL mi_kani_chk_active_range(MUSEUM_INSECT_PRIVATE_DATA* actor) {
+    f32 dx;
+    f32 dz;
+    f32 dsq;
+    f32 range;
+    s16 idx;
+    f32 x;
+    f32 z;
+
+    idx = actor->_7A;
+    x = kani_base_pos[idx].x;
+    z = kani_base_pos[idx].z;
+    dx = actor->_1C.x - x;
+    dz = actor->_1C.z - z;
+    dsq = SQ(dx) + SQ(dz);
+    range = 60.f + GETREG(TAKREG, 0x32) * 0.1f;
+    if (dsq > SQ(range)) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void mi_kani_setupAction(MUSEUM_INSECT_PRIVATE_DATA* actor, int r4, GAME* game);
+
+static void mi_kani_wait_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 idx;
+
+    actor->_70 = 0;
+    idx = actor->_7A;
+    actor->_6E = (s16)(RANDOM_F(kani_wait_range_tbl[idx]) + kani_wait_base_tbl[idx]);
+    if (actor->_8E == 0) {
+        actor->_6E *= 10;
+    }
+}
+
+static void mi_kani_wait(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 sway_angle;
+
+    if (actor->_00 == 0x2c) {
+        actor->_70 += 0x200;
+        sway_angle = cos_s(actor->_70);
+        actor->_5C = 3.f * sway_angle;
+    }
+
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        mi_kani_direction_change(actor);
+        mi_kani_setupAction(actor, 1, game);
+    }
+}
+
+static void mi_kani_move_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 idx;
+
+    idx = actor->_7A;
+    actor->_6E = (s16)(RANDOM_F(kani_move_range_tbl[idx]) + kani_move_base_tbl[idx]);
+}
+
+static void mi_kani_move(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    sAdo_OngenPos((u32)actor, 0x63, &actor->_1C);
+
+    mi_kani_anime_proc(actor);
+
+    if (mi_kani_chk_active_range(actor)) {
+        s16 target_angle;
+        xyz_t diff;
+
+        target_angle = (s16)(RANDOM_F(2.f));
+        xyz_t_sub(&kani_base_pos[actor->_7A], &actor->_1C, &diff);
+        target_angle = atans_table(diff.z, diff.x);
+        actor->_68.y = target_angle;
+        mi_kani_direction_change(actor);
+    }
+
+    actor->_34.x = actor->_40 * sin_s(actor->_68.y);
+    actor->_34.z = actor->_40 * cos_s(actor->_68.y);
+    xyz_t_add(&actor->_1C, &actor->_34, &actor->_1C);
+
+    if (actor->_00 != 0x2f) {
+        actor->_1C.y = mi_kani_get_pos_y(&actor->_1C);
+    }
+
+    minsect_garden_BGCheck(actor, 500.f, 120.f);
+    minsect_tree_ObjCheck(actor);
+    minsect_rock_ObjCheck(actor);
+
+    if (actor->_8C & 0x1e) {
+        mi_kani_direction_change(actor);
+        actor->_68.y += (s16)DEG2SHORT_ANGLE2(RANDOM2_F(120.f));
+    }
+
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        if (RANDOM_F(1.f) > 0.7f) {
+            mi_kani_setupAction(actor, 2, game);
+        } else {
+            mi_kani_setupAction(actor, 0, game);
+        }
+    }
+}
+
+static void mi_kani_dug_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    mi_kani_dug_effect(actor, game);
+    sAdo_OngenPos((u32)actor, 0x477, &actor->_1C);
+    actor->_6E = (s16)(RANDOM_F(120.f) + 60.f);
+}
+
+static void mi_kani_dug(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    s16 sway_angle;
+
+    actor->_70 += 0x800;
+    sway_angle = cos_s(actor->_70);
+    actor->_5C = 5.f * sway_angle;
+
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        if (RANDOM_F(1.f) > 0.5f) {
+            mi_kani_setupAction(actor, 3, game);
+        } else {
+            mi_kani_setupAction(actor, 0, game);
+        }
+    }
+}
+
+static void mi_kani_appear_init(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    mi_kani_get_pos_y(&actor->_1C);
+    mi_kani_dug_effect(actor, game);
+}
+
+static void mi_kani_appear(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    f32 target_y;
+
+    target_y = mi_kani_get_pos_y(&actor->_1C);
+    if (!add_calc(&actor->_1C.y, target_y, CALC_EASE(0.3f), 0.5f, 0.05f)) {
+        mi_kani_setupAction(actor, 0, game);
+    }
+
+    actor->_6E--;
+    if (actor->_6E < 0) {
+        mi_kani_setupAction(actor, 0, game);
+    }
+}
+
+static void mi_kani_setupAction(MUSEUM_INSECT_PRIVATE_DATA* actor, int r4, GAME* game) {
+    static PRIV_INSECT_PROCESS init_proc[] = {
+        mi_kani_wait_init, mi_kani_move_init, mi_kani_dug_init,
+        mi_kani_appear_init, mi_kani_camouflage_init,
+        mi_kani_appear_from_shell_init, mi_kani_into_shell_init
+    };
+    static PRIV_INSECT_PROCESS move_proc[] = {
+        mi_kani_wait, mi_kani_move, mi_kani_dug,
+        mi_kani_appear, mi_kani_camouflage,
+        mi_kani_appear_from_shell, mi_kani_into_shell
+    };
+    actor->_04 = move_proc[r4];
+    init_proc[r4](actor, game);
+}
+
+void minsect_kani_ct(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    switch (actor->_00) {
+        case 0x2c:
+            actor->_7A = 0;
+            break;
+        case 0x2e:
+            actor->_7A = 1;
+            break;
+        case 0x2f:
+        default:
+            actor->_7A = 2;
+            break;
+    }
+
+    actor->_1C = kani_base_pos[actor->_7A];
+    if (actor->_00 != 0x2f) {
+        actor->_1C.y = mi_kani_get_pos_y(&actor->_1C);
+    }
+
+    actor->_74 = 0;
+    mi_kani_setupAction(actor, 0, game);
+
+    actor->_68.y = (s16)(RANDOM_F(1.f) * DEG2SHORT_ANGLE2(360.f));
+    actor->_72 = actor->_68.y;
+    actor->_78 = 1;
+    actor->_5C = 0.f;
+}
+
+void minsect_kani_mv(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    if (GETREG(NMREG, 0x12)) {
+        actor->_1C.x = kani_base_pos[0].x + (f32)GETREG(NMREG, 0x10);
+        actor->_1C.z = kani_base_pos[0].z + (f32)GETREG(NMREG, 0x11);
+    }
+
+    if (actor->_00 != 0x2f) {
+        actor->_1C.y = mi_kani_get_pos_y(&actor->_1C);
+    }
+
+    actor->_04(actor, game);
+    minsect_kani_ObjCheck(actor);
+    minsect_kanban_BGCheck(actor);
+}
+
+void minsect_kani_ObjCheck(MUSEUM_INSECT_PRIVATE_DATA* actor) {
+    int i;
+
+    for (i = 0; i < 5; i++) {
+        MUSEUM_INSECT_PRIVATE_DATA* priv;
+        s16 idx;
+        f32 x;
+        f32 z;
+        f32 dsq;
+        f32 range;
+
+        idx = kani_idx_tbl[i];
+        priv = &MI_Control_Actor->privInsects[idx];
+        if (priv == actor) {
+            continue;
+        }
+        if (!(priv->_8C & 1)) {
+            continue;
+        }
+
+        range = 10.f + GETREG(TAKREG, 0x32) * 0.1f;
+        x = priv->_1C.x - actor->_1C.x;
+        z = priv->_1C.z - actor->_1C.z;
+        dsq = SQ(x) + SQ(z);
+
+        if (dsq < SQ(range)) {
+            s16 ang = atans_table(z, x);
+            f32 dist = range - sqrtf(dsq);
+            actor->_1C.x -= dist * sin_s(ang);
+            actor->_1C.z -= dist * cos_s(ang);
+        }
+    }
+}
+
+void minsect_kani_dw(MUSEUM_INSECT_PRIVATE_DATA* actor, GAME* game) {
+    GAME_PLAY* play = (GAME_PLAY*)game;
+    s16 facing;
+    f32 scale_factor;
+
+    facing = actor->_68.y;
+    if (actor->_00 == 0x2c) {
+        facing += (s16)DEG2SHORT_ANGLE2(90);
+    }
+
+    _texture_z_light_fog_prim(game->graph);
+    OPEN_DISP(game->graph);
+
+    Matrix_translate(actor->_1C.x, actor->_1C.y, actor->_1C.z, MTX_LOAD);
+    scale_factor = actor->_14 * actor->_5C;
+    Matrix_scale(scale_factor, scale_factor, scale_factor, MTX_MULT);
+    Matrix_rotateXYZ(actor->_68.x, facing, actor->_68.z, MTX_MULT);
+
+    if (actor->_58 != 0.f) {
+        Matrix_rotateXYZ((s16)(actor->_58 * DEG2SHORT_ANGLE2(1.f)), 0, 0, MTX_MULT);
+    }
+
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gDPSetEnvColor(NEXT_POLY_OPA_DISP, 0, 0xff, 0x9b, 0xff);
+    gSPDisplayList(NEXT_POLY_OPA_DISP, minsect_mdl[actor->_00][actor->_74]);
+
+    minsect_draw_shadow(actor, game);
+    CLOSE_DISP(game->graph);
+
+    /* Draw additional shell shadow */
+    {
+        f32 v;
+        f32 v1;
+        u8 alpha;
+        u8 shadow;
+
+        shadow = play->kankyo.shadow_alpha;
+        v1 = 1.f + (GETREG(TAKREG, 0x2b) * 0.1f);
+        v = 100.f - (actor->_1C.y - 45.f);
+        alpha = (int)(v * v1 + 40.0f + GETREG(TAKREG, 0x2c));
+        alpha = (alpha * shadow) >> 8;
+
+        scale_factor = (GETREG(TAKREG, 0x28) * 0.001f + 0.005f);
+        scale_factor *= minsect_shadow_scale_tbl[(int)actor->_00];
+
+        Matrix_translate(actor->_1C.x, 45.f, actor->_1C.z, MTX_LOAD);
+        Matrix_scale(scale_factor, scale_factor, scale_factor, MTX_MULT);
+        _texture_z_light_fog_prim_shadow(game->graph);
+
+        OPEN_SHADOW_DISP(game->graph);
+        gDPSetPrimColor(SHADOW_DISP++, 0, 255, 0, 0, 0, alpha);
+        gSPMatrix(SHADOW_DISP++, _Matrix_to_Mtx_new(game->graph), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList(SHADOW_DISP++, &ef_shadow_insect_modelT);
+        CLOSE_SHADOW_DISP(game->graph);
+    }
+}

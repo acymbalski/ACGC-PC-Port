@@ -40,6 +40,9 @@
 #include "m_mscore_ovl_h.h"
 #include "m_calendar_ovl_h.h"
 #include "m_design_ovl_h.h"
+#include "m_skintone_ovl_h.h"
+#include "m_storage_ovl_h.h"
+#include "m_ordinance_ovl_h.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -208,7 +211,12 @@ struct submenu_overlay_s {
     /* 0x9EC */ mCD_Ovl_c* calendar_ovl;
     /* 0x9F0 */ mPM_Ovl_c* passwordMake_ovl;
     /* 0x9F4 */ mPC_Ovl_c* passwordChk_ovl;
-    /* 0x9F8 */ u8 hboard_exists;
+#if VERSION >= VER_DELUXE
+    /* 0x9F8 */ mST_Ovl_c* skintone_ovl;
+    /* 0x9FC */ mSO_Ovl_c* storage_ovl;
+    /* 0xA00 */ mOD_Ovl_c* ordinance_ovl;
+#endif
+    /* 0xA00 */ u8 hboard_exists;
     /* 0x9F9 */ u8 le_exists;
     /* 0x9FA */ u8 _9FA;
     /* 0x9FB */ u8 _9FB;

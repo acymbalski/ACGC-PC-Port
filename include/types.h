@@ -21,6 +21,7 @@
 
 #define VER_GAFE01_00 0
 #define VER_GAFU01_00 1
+#define VER_DELUXE 2
 
 // TODO: add PAL version to this check
 // Adjusts values based on regional frame rate (Hz)

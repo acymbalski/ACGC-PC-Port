@@ -1,0 +1,268 @@
+#include "ac_museum_fish_priv.h"
+
+/* Hari (porcupinefish) - puffs up when startled */
+
+void mfish_hari_normal_process_init(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game);
+void mfish_hari_normal_process(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game);
+
+void mfish_hari_hari_scale(MUSEUM_FISH_PRIVATE_DATA* actor) {
+    actor->_642--;
+    if (actor->_642 <= 0) {
+        actor->_642 = 0;
+        add_calc(&actor->hari_scale_x, 0.0f, CALC_EASE(0.1f), 0.01f, 0.005f);
+        add_calc(&actor->hari_scale_y, 0.0f, CALC_EASE(0.1f), 0.01f, 0.005f);
+        add_calc2(&actor->hari_scale_z, 0.0f, 0.1f, 0.005f);
+    } else {
+        add_calc2(&actor->hari_scale_x, 1.0f, 0.2f, 0.05f);
+        add_calc2(&actor->hari_scale_y, 1.0f, 0.2f, 0.05f);
+        add_calc2(&actor->hari_scale_z, 1.0f, 0.2f, 0.05f);
+    }
+}
+
+void mfish_hari_turn(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    f32 speed_ratio;
+    f32 t;
+    s16 target_y;
+    s16 diff;
+
+    speed_ratio = actor->_5E8 / (actor->init_data._14 + actor->init_data._10);
+    t = speed_ratio * 0.5f;
+
+    actor->_622 = add_calc_short_angle2(&actor->_60C.y, actor->_612.y,
+                                        CALC_EASE2(0.3f + t), DEG2SHORT_ANGLE(3.75f), DEG2SHORT_ANGLE(0.25f));
+    add_calc_short_angle2(&actor->_618.z, actor->_622, CALC_EASE2(0.25f),
+                          DEG2SHORT_ANGLE(2.5f), DEG2SHORT_ANGLE(0.25f));
+
+    if (actor->_62E_flags & 0x1e) {
+        if ((s16)(actor->_60C.y - actor->_62C) > 0) {
+            actor->_612.y = actor->_62C + DEG2SHORT_ANGLE(115);
+        } else {
+            actor->_612.y = actor->_62C - DEG2SHORT_ANGLE(115);
+        }
+        actor->_5F0 = actor->init_data._14 + actor->init_data._10;
+    } else if (actor->_62E_flags & 0x20) {
+        s16 esc = mfish_get_escape_angle(actor, game);
+        add_calc_short_angle2(&actor->_612.y, esc, CALC_EASE(0.5f),
+                              DEG2SHORT_ANGLE(15), DEG2SHORT_ANGLE(0.5f));
+    } else if (actor->activityFrameCount < 0) {
+        f32 v = RANDOM_F(1.0f);
+        actor->activityFrameCount =
+            actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+        actor->savedActivityFrameCount = actor->activityFrameCount;
+        actor->_5F0 = actor->init_data._10 + Rnd_EX_f(actor->init_data._14);
+        if (RANDOM_F(1.0f) < 0.5f) {
+            actor->_612.y += DEG2SHORT_ANGLE((v - 0.3f) * 90.0f);
+        } else {
+            actor->_612.y -= DEG2SHORT_ANGLE((v - 0.3f) * 90.0f);
+        }
+    }
+
+    if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.05f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.02f);
+    }
+}
+
+void mfish_hari_ct(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    s16 s;
+    s16 frames;
+
+    s = qrand();
+    mfish_onefish_ct(actor, game);
+    s = qrand();
+    actor->_5E8 = actor->init_data._10 + RANDOM_F(actor->init_data._14) * s;
+    /* Normalize: qrand returns s16, RANDOM_F scales it */
+    actor->_5E8 = actor->init_data._10 + RANDOM_F(actor->init_data._14);
+    actor->_5F0 = actor->_5E8;
+    actor->_60C.y = s;
+    actor->_612.y = actor->_60C.y;
+    actor->_5F4 = 0.0f;
+    actor->_5EC = 0.0f;
+    actor->_5AC = ZeroVec;
+    actor->_638 = qrand();
+    frames = actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+    actor->activityFrameCount = frames;
+    actor->savedActivityFrameCount = frames;
+    actor->_624 = 2;
+    actor->_594 = NULL;
+    actor->_598 = NULL;
+    actor->_604 = 0.0f;
+    actor->_5AC.x = 0.0f;
+    actor->_5AC.z = 0.0f;
+    mfish_hari_normal_process_init(actor, game);
+    actor->hari_scale_x = 1.0f;
+    actor->hari_scale_y = 1.0f;
+    actor->hari_scale_z = 0.0f;
+    actor->_642 = 0;
+    actor->_644 = 0;
+}
+
+void mfish_hari_normal_process_init(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    if (actor->_642 > 0) {
+        /* Puffed up: use shorter activity timer */
+        actor->activityFrameCount =
+            actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+        actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+    } else {
+        /* Normal: use debug register scaled timer */
+        s16 reg_val = GETREG(TAKREG, 0x5D) + 1;
+        actor->activityFrameCount = (s16)(actor->activityFrameCount * reg_val);
+        actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+    }
+    actor->savedActivityFrameCount = actor->activityFrameCount;
+    actor->_604 = RANDOM_F(5.0f) + 0.5f;
+    actor->currentProcess = mfish_hari_normal_process;
+}
+
+void mfish_hari_normal_process(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    if (actor->activityFrameCount < 0) {
+        if (actor->_642 > 0) {
+            actor->activityFrameCount =
+                actor->init_data.activeFramesMin + (s16)RANDOM_F(actor->init_data.activeFramesRange);
+            actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+            actor->savedActivityFrameCount = actor->activityFrameCount;
+        } else {
+            s16 reg_val = GETREG(TAKREG, 0x5D) + 1;
+            actor->activityFrameCount = (s16)(actor->activityFrameCount * reg_val);
+            actor->_5F0 = (actor->init_data._10 + RANDOM_F(actor->init_data._14)) * 0.5f;
+            actor->savedActivityFrameCount = actor->activityFrameCount;
+        }
+        actor->_604 = RANDOM_F(5.0f) + 0.5f;
+    }
+    actor->savedActivityFrameCount = actor->activityFrameCount;
+    mfish_hari_turn(actor, game);
+}
+
+void mfish_hari_mv(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    xyz_t p;
+    f32 angle_speed;
+
+    mfish_onefish_mv(actor, game);
+
+    /* Call current process (normal or other) */
+    actor->currentProcess(actor, game);
+
+    /* Angle counter for body wave */
+    angle_speed = RANDOM_F(3.0f) * actor->_5E8 * DEG2SHORT_ANGLE(1.0f);
+    actor->_618.x += (s16)angle_speed;
+
+    /* Compute vertical offset from body wave */
+    actor->_5F4 = sin_s(actor->_618.x) * 5.0f;
+
+    /* Check for puff trigger: player nearby or specific fish */
+    if (actor->_62E_flags & 0x20) {
+        if (actor->_642 == 0) {
+            MUSEUM_FISH_PRIVATE_DATA* other = actor->_594;
+            if (other != NULL) {
+                int other_type = other->fish_idx;
+                if (other_type == aGYO_TYPE_ARAPAIMA ||
+                    other_type == aGYO_TYPE_GIANT_SNAKEHEAD ||
+                    other_type == aGYO_TYPE_PIRANHA) {
+                    s16 reg_base = GETREG(TAKREG, 0x5C);
+                    s16 reg_min = GETREG(TAKREG, 0x5B);
+                    actor->_642 = reg_min + (s16)(RANDOM_F(reg_base + 50) + 150);
+                    mfish_hari_normal_process_init(actor, game);
+                }
+            }
+        }
+
+        /* Approach vertical target with ease */
+        add_calc2(&actor->position.y, actor->_5F4 + actor->init_data._0C, 0.1f, 0.1f);
+    } else {
+        /* Normal vertical movement */
+        add_calc2(&actor->position.y, actor->_5F4 + actor->init_data._0C, 0.02f, 0.02f);
+    }
+
+    /* Approach target speed */
+    add_calc(&actor->_5F8, 0.0f, CALC_EASE(0.5f), 0.25f, 0.01f);
+
+    /* Speed calculation */
+    if (ABS(actor->_618.z) > DEG2SHORT_ANGLE(15) &&
+        ABS(actor->_622) - ABS(actor->_618.z) < 0) {
+        add_calc2(&actor->_5E8, MAX(actor->_5F0, 0.8f), 0.5f, 0.25f);
+    } else if (actor->activityFrameCount < actor->savedActivityFrameCount - 80) {
+        add_calc2(&actor->_5E8, actor->_5EC, 1.0f - actor->init_data._18, 0.0025f);
+    } else if (actor->_5E8 > actor->_5F0) {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.1f, 0.01f);
+    } else {
+        add_calc2(&actor->_5E8, actor->_5F0, 0.2f, 0.02f);
+    }
+
+    /* Animation speed */
+    actor->kf.keyframe.frame_control.speed = 0.5f * 0.5f + 1.2f * actor->_5E8;
+
+    /* Velocity from speed and heading */
+    actor->_5D0.x = actor->_5E8 * sin_s(actor->_60C.y);
+    actor->_5D0.z = actor->_5E8 * cos_s(actor->_60C.y);
+
+    /* Flow vector */
+    mfish_get_flow_vec(&p, actor, game);
+    actor->position.x += actor->_5D0.x + p.x;
+    actor->position.z += actor->_5D0.z + p.z;
+
+    /* Update hari puff scale */
+    mfish_hari_hari_scale(actor);
+
+    mfish_body_wind_anime_play(actor, game);
+    Museum_Fish_BGCheck(actor, game);
+
+    if (actor->position.y < GETREG(TAKREG, 0x47) + 55.0f - actor->init_data.ofs_y) {
+        actor->position.y = GETREG(TAKREG, 0x47) + 55.0f - actor->init_data.ofs_y;
+    }
+    actor->activityFrameCount--;
+}
+
+BOOL mfish_hari_before_disp(GAME* game, cKF_SkeletonInfo_R_c* keyframe, int joint_idx,
+                            Gfx** joint_shape, u8* joint_flags, void* arg,
+                            s_xyz* joint_rot, xyz_t* joint_pos) {
+    MUSEUM_FISH_PRIVATE_DATA* actor = (MUSEUM_FISH_PRIVATE_DATA*)arg;
+
+    if (joint_idx == 3) {
+        int v = joint_rot->y - (actor->_618.z << 1);
+        joint_rot->y = MY_CLAMP(v, DEG2SHORT_ANGLE(-80), DEG2SHORT_ANGLE(80));
+    }
+
+    /* Puff scale animation */
+    if (actor->_642 > 0) {
+        actor->_644 += GETREG(TAKREG, 0x5D) + 335;
+    }
+
+    {
+        f32 abs_sin = ABS(sin_s(actor->_644));
+        f32 scale = abs_sin * 0.3f + 1.0f;
+
+        if (joint_idx == 2) {
+            Matrix_scale(actor->hari_scale_x * scale, actor->hari_scale_y * scale,
+                         scale, MTX_MULT);
+        } else if (joint_idx == 4) {
+            Matrix_scale(actor->hari_scale_x * scale, actor->hari_scale_y * scale,
+                         scale, MTX_MULT);
+        }
+    }
+
+    return TRUE;
+}
+
+void mfish_hari_dw(MUSEUM_FISH_PRIVATE_DATA* actor, GAME* game) {
+    mfish_keyframe_c* skele;
+    Mtx* mtxp;
+
+    skele = &actor->kf;
+    if (game->frame_counter & 1) {
+        mtxp = skele->mtx[0];
+    } else {
+        mtxp = skele->mtx[1];
+    }
+
+    OPEN_DISP(game->graph);
+    Matrix_translate(actor->position.x, actor->position.y, actor->position.z, MTX_LOAD);
+    Matrix_rotateXYZ(actor->_60C.x, actor->_60C.y, actor->_60C.z, MTX_MULT);
+    Matrix_translate(0.0f, 0.0f, actor->init_data.ofs_z, MTX_MULT);
+    Matrix_scale(actor->init_data.renderScale, actor->init_data.renderScale,
+                 actor->init_data.renderScale, MTX_MULT);
+    gSPMatrix(NEXT_POLY_OPA_DISP, _Matrix_to_Mtx_new(game->graph),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    cKF_Si3_draw_R_SV(game, &skele->keyframe, mtxp, mfish_hari_before_disp, NULL, actor);
+    CLOSE_DISP(game->graph);
+}

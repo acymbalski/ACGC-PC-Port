@@ -47,7 +47,13 @@
 #include "ac_psnowman.h"
 #include "ac_pterminal.h"
 #include "ac_quest_manager.h"
+#if VERSION >= VER_DELUXE
+#include "ac_reset_chair.h"
+#endif
 #include "ac_reset_demo.h"
+#if VERSION >= VER_DELUXE
+#include "ac_resetcenter_indoor.h"
+#endif
 #include "ac_ride_off_demo.h"
 #include "ac_rope.h"
 #include "ac_set_manager.h"
@@ -112,6 +118,14 @@
 #include "ac_fuusen.h"
 #include "ac_aprilfool_control.h"
 #include "ac_groundhog_control.h"
+#if VERSION >= VER_DELUXE
+#include "ac_monument.h"
+#include "ac_saucer.h"
+#include "ac_reset_chair.h"
+#include "ac_resetcenter_indoor.h"
+
+/* Real profiles for these Deluxe actors are in their individual .c files */
+#endif
 #include "ac_mscore_control.h"
 #include "ac_countdown_npc0.h"
 #include "ac_countdown_npc1.h"
@@ -499,13 +513,22 @@ ACTOR_DLFTBL actor_dlftbls[] = {
   MAKE_ACTOR_DLF(Npc_Hem),
   MAKE_ACTOR_DLF(Tent),
   MAKE_ACTOR_DLF(Pterminal),
-  MAKE_ACTOR_DLF(Mscore_Control)
+  MAKE_ACTOR_DLF(Mscore_Control),
+#if VERSION >= VER_DELUXE
+  MAKE_ACTOR_DLF(Monument),
+  MAKE_ACTOR_NULL(),                   /* NPC_HEM2 - no implementation */
+  MAKE_ACTOR_NULL(),                   /* NPC_RESET - no implementation */
+  MAKE_ACTOR_DLF(Resetcenter_Indoor),
+  MAKE_ACTOR_DLF(Reset_Chair),
+  MAKE_ACTOR_DLF(Saucer),
+  MAKE_ACTOR_NULL(),                   /* T_HAT - no implementation */
+#endif
 };
 
 int actor_dlftbls_num;
 
 extern void actor_dlftbls_init() {
-  actor_dlftbls_num = 246;
+  actor_dlftbls_num = ARRAY_COUNT(actor_dlftbls);
 }
 
 extern void actor_dlftbls_cleanup() {

@@ -18,6 +18,8 @@
 #include "m_fishrecord.h"
 #include "m_event.h"
 #include "m_common_data.h"
+#include "m_malloc.h"
+#include "sys_math.h"
 
 #define lbRTC_TIME_TO_U32(t) ((u32)(((t)->year << 16) + ((t)->month << 8) + (t)->day))
 
@@ -258,7 +260,7 @@ static int mNtc_set_landname_string(u8* buf) {
 }
 
 static void mNtc_set_treasure_string(AnmPersonalID_c* sender_id, mActor_name_t item_no, int block_x, int block_z) {
-    static u8 choume_str[BLOCK_X_NUM] = "QABCDEF";
+    static u8 choume_str[BLOCK_X_NUM] = { 'Q', 'A', 'B', 'C', 'D', 'E', 'F' };
 
     int land_name_len;
     u8 b_str;
@@ -793,3 +795,379 @@ extern void mNtc_set_auto_nwrite_data() {
         }
     }
 }
+
+#if VERSION >= VER_DELUXE
+
+/* ============================================================
+ * C++ template classes for Deluxe bulletin board message selection.
+ *
+ * Class hierarchy:
+ *   BBSList                       — base: parallel item/index arrays
+ *   └─ RngList<int>               — random selection from set entries
+ *      └─ InverseRngList<int>     — inverted logic (tracks unused entries)
+ *         └─ BackedInverseRngList<int> — backed by persistent u32* storage
+ *
+ * These are used by mNtc_get_message_of_the_week to randomly select
+ * weekly bulletin board messages, tracking which ones have been shown.
+ * ============================================================ */
+
+#define mNtc_MOTW_COUNT 43
+
+/* ------ BBSList ------ */
+
+BBSList::~BBSList() {
+    if (mItems != NULL) {
+        zelda_free(mItems);
+        mItems = NULL;
+    }
+    if (mIndices != NULL) {
+        zelda_free(mIndices);
+        mIndices = NULL;
+    }
+    mCount = 0;
+    mNumSet = 0;
+}
+
+int BBSList::GetIdx(int i) const {
+    return mIndices[i];
+}
+
+int BBSList::GetItem(int i) const {
+    return mItems[i];
+}
+
+/* ------ RngList<int> ------ */
+
+template <typename T>
+RngList<T>::~RngList() {
+    /* Base class destructor handles cleanup */
+}
+
+template <typename T>
+void RngList<T>::Reset() {
+    int i;
+
+    for (i = 0; i < mCount; i++) {
+        mItems[i] = -1;
+        mIndices[i] = -1;
+    }
+    mNumSet = 0;
+}
+
+template <typename T>
+void RngList<T>::AddIdx(int idx) {
+    if (idx >= 0 && idx < mCount && mIndices[idx] == -1) {
+        mItems[mNumSet] = idx;
+        mIndices[idx] = mNumSet;
+        mNumSet++;
+    }
+}
+
+template <typename T>
+void RngList<T>::ClearIdx(int idx) {
+    if (idx >= 0 && idx < mCount && mIndices[idx] != -1) {
+        int slot = mIndices[idx];
+        mNumSet--;
+        if (slot != mNumSet) {
+            int last_item = mItems[mNumSet];
+            mItems[slot] = last_item;
+            mIndices[last_item] = slot;
+        }
+        mItems[mNumSet] = -1;
+        mIndices[idx] = -1;
+    }
+}
+
+template <typename T>
+BOOL RngList<T>::IsSet(int idx) const {
+    if (idx >= 0 && idx < mCount) {
+        return mIndices[idx] != -1;
+    }
+    return FALSE;
+}
+
+template <typename T>
+BOOL RngList<T>::IsItemSet(int item) const {
+    int i;
+
+    if (item < 0) {
+        return FALSE;
+    }
+
+    for (i = 0; i < mNumSet; i++) {
+        if (mItems[i] == item) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+template <typename T>
+int RngList<T>::GetN(int* out, int n) {
+    int i;
+    int count;
+    int idx;
+
+    if (n > mNumSet) {
+        n = mNumSet;
+    }
+
+    count = 0;
+    for (i = 0; i < n; i++) {
+        if (mNumSet <= 0) {
+            break;
+        }
+        idx = RANDOM(mNumSet);
+        out[count] = mItems[idx];
+        ClearIdx(mItems[idx]);
+        count++;
+    }
+    return count;
+}
+
+template <typename T>
+T RngList<T>::Get() {
+    int idx;
+    int i;
+    int rng;
+    int attempts;
+    int item;
+
+    if (mNumSet <= 0) {
+        return (T)-1;
+    }
+
+    /* Try random selection with limited attempts */
+    attempts = mCount * 2;
+    for (i = 0; i < attempts; i++) {
+        rng = RANDOM(mCount);
+        if (mIndices[rng] != -1) {
+            return (T)rng;
+        }
+    }
+
+    /* Fall back to linear scan */
+    for (i = 0; i < mCount; i++) {
+        if (mIndices[i] != -1) {
+            return (T)i;
+        }
+    }
+
+    return (T)-1;
+}
+
+template <typename T>
+T RngList<T>::GetAndCrossOff() {
+    T result;
+    int idx;
+    int i;
+    int rng;
+    int attempts;
+
+    if (mNumSet <= 0) {
+        return (T)-1;
+    }
+
+    /* Try random selection with limited attempts */
+    attempts = mCount * 2;
+    for (i = 0; i < attempts; i++) {
+        rng = RANDOM(mCount);
+        if (mIndices[rng] != -1) {
+            result = (T)rng;
+            ClearIdx(rng);
+            return result;
+        }
+    }
+
+    /* Fall back to linear scan */
+    for (i = 0; i < mCount; i++) {
+        if (mIndices[i] != -1) {
+            result = (T)i;
+            ClearIdx(i);
+            return result;
+        }
+    }
+
+    return (T)-1;
+}
+
+/* ------ InverseRngList<int> ------ */
+
+template <typename T>
+InverseRngList<T>::~InverseRngList() {
+    /* Base class destructor handles cleanup */
+}
+
+template <typename T>
+void InverseRngList<T>::Reset() {
+    int i;
+
+    for (i = 0; i < this->mCount; i++) {
+        this->mItems[i] = i;
+        this->mIndices[i] = i;
+    }
+    this->mNumSet = this->mCount;
+}
+
+template <typename T>
+void InverseRngList<T>::AddIdx(int idx) {
+    /* In inverse list, AddIdx marks an entry as used (removes it) */
+    RngList<T>::ClearIdx(idx);
+}
+
+template <typename T>
+void InverseRngList<T>::ClearIdx(int idx) {
+    /* In inverse list, ClearIdx restores an entry (adds it back) */
+    RngList<T>::AddIdx(idx);
+}
+
+template <typename T>
+BOOL InverseRngList<T>::IsSet(int idx) const {
+    /* In inverse list, IsSet checks if entry is still available (not used) */
+    return RngList<T>::IsSet(idx);
+}
+
+template <typename T>
+int InverseRngList<T>::GetN(int* out, int n) {
+    return RngList<T>::GetN(out, n);
+}
+
+template <typename T>
+T InverseRngList<T>::Get() {
+    int i;
+    int rng;
+    int attempts;
+
+    if (this->mNumSet <= 0) {
+        return (T)-1;
+    }
+
+    /* Try random selection from the items array directly */
+    attempts = this->mCount * 2;
+    for (i = 0; i < attempts; i++) {
+        rng = RANDOM(this->mNumSet);
+        if (rng < this->mNumSet) {
+            return (T)this->mItems[rng];
+        }
+    }
+
+    /* Fall back to first available */
+    if (this->mNumSet > 0) {
+        return (T)this->mItems[0];
+    }
+
+    return (T)-1;
+}
+
+template <typename T>
+T InverseRngList<T>::GetAndCrossOff() {
+    T result;
+    int rng;
+    int i;
+    int attempts;
+
+    if (this->mNumSet <= 0) {
+        return (T)-1;
+    }
+
+    /* Try random selection from items array */
+    attempts = this->mCount * 2;
+    for (i = 0; i < attempts; i++) {
+        rng = RANDOM(this->mNumSet);
+        if (rng < this->mNumSet) {
+            result = (T)this->mItems[rng];
+            RngList<T>::ClearIdx(this->mItems[rng]);
+            return result;
+        }
+    }
+
+    /* Fall back to first available */
+    if (this->mNumSet > 0) {
+        result = (T)this->mItems[0];
+        RngList<T>::ClearIdx(this->mItems[0]);
+        return result;
+    }
+
+    return (T)-1;
+}
+
+/* ------ BackedInverseRngList<int> ------ */
+
+template <typename T>
+BackedInverseRngList<T>::BackedInverseRngList(u32* data, int count) {
+    int i;
+
+    this->mCount = count;
+    this->mNumSet = 0;
+    this->mItems = (int*)zelda_malloc(count * sizeof(int));
+    this->mIndices = (int*)zelda_malloc(count * sizeof(int));
+    mBackingData = data;
+
+    /* Initialize all entries as available */
+    for (i = 0; i < count; i++) {
+        this->mItems[i] = -1;
+        this->mIndices[i] = -1;
+    }
+
+    /* Restore state from backing storage: set entries that haven't been used */
+    for (i = 0; i < count; i++) {
+        int word_idx = i / 32;
+        int bit_idx = i % 32;
+
+        if (!(data[word_idx] & (1u << bit_idx))) {
+            /* Entry not yet used — add to available set */
+            this->mItems[this->mNumSet] = i;
+            this->mIndices[i] = this->mNumSet;
+            this->mNumSet++;
+        }
+    }
+}
+
+template <typename T>
+BackedInverseRngList<T>::~BackedInverseRngList() {
+    mBackingData = NULL;
+    /* Base class destructor handles mItems/mIndices cleanup */
+}
+
+/* Force template instantiation for int */
+template class RngList<int>;
+template class InverseRngList<int>;
+template class BackedInverseRngList<int>;
+
+/* ------ mNtc_get_message_of_the_week ------ */
+
+/**
+ * @brief Select a random "message of the week" for the bulletin board.
+ *
+ * Creates a BackedInverseRngList from persistent save data that tracks
+ * which weekly messages have already been shown. Picks a random unshown
+ * message, marks it as used, and writes it to the bulletin board.
+ *
+ * @return The selected message index, or -1 if all messages exhausted.
+ */
+int mNtc_get_message_of_the_week() {
+    static u32 motw_used_bits[(mNtc_MOTW_COUNT + 31) / 32];
+    int result;
+
+    BackedInverseRngList<int> list(motw_used_bits, mNtc_MOTW_COUNT);
+    result = list.GetAndCrossOff();
+
+    if (result >= 0 && result < mNtc_MOTW_COUNT) {
+        /* Mark as used in backing storage */
+        int word_idx = result / 32;
+        int bit_idx = result % 32;
+        motw_used_bits[word_idx] |= (1u << bit_idx);
+    }
+
+    /* If all messages used, reset the tracking bits */
+    if (list.mNumSet <= 0) {
+        int i;
+        for (i = 0; i < (int)(sizeof(motw_used_bits) / sizeof(motw_used_bits[0])); i++) {
+            motw_used_bits[i] = 0;
+        }
+    }
+
+    return result;
+}
+
+#endif /* VERSION >= VER_DELUXE */

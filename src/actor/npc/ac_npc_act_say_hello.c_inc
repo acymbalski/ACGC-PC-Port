@@ -1,0 +1,190 @@
+/* Deluxe-only say_hello action - NPCs greet the player with voice lines */
+#if VERSION >= VER_GAFU01_00
+
+enum {
+    aNPC_ACT_SAY_HELLO_STEP_TURN,
+    aNPC_ACT_SAY_HELLO_STEP_HELLO,
+    aNPC_ACT_SAY_HELLO_STEP_TALK_WAIT_TURN,
+    aNPC_ACT_SAY_HELLO_STEP_TALK_WAIT,
+
+    aNPC_ACT_SAY_HELLO_STEP_NUM
+};
+
+static void aNPC_act_say_hello_chg_step(NPC_ACTOR* nactorx, u8 step);
+
+// clang-format off
+static u8 aNPC_act_say_hello_act_idx[] = {
+    aNPC_ACTION_TYPE_TURN,
+    aNPC_ACTION_TYPE_GREETING0,
+    aNPC_ACTION_TYPE_TURN,
+    aNPC_ACTION_TYPE_WAIT,
+};
+// clang-format on
+
+/* Per-personality greeting voice data: mNpc_LOOKS_NUM rows x 8 chars each.
+ * Each byte is an AC character code passed through mMsg_sound_voice_get().
+ * 0x20 (space) acts as string terminator for mMl_strlen. */
+// clang-format off
+static u8 aNPC_act_say_hello_voice_tbl[mNpc_LOOKS_NUM * 8] = {
+    /* GIRL       */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    /* KO_GIRL    */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    /* BOY        */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    /* SPORT_MAN  */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    /* GRIM_MAN   */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    /* NANIWA_LADY*/ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+};
+// clang-format on
+
+static void aNPC_act_say_hello_voice(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    s16 flag = nactorx->_9c0;
+
+    if (flag == 1) {
+        ACTOR* player = (ACTOR*)get_player_actor_withoutCheck(play);
+        f32 elapsed = nactorx->_9ac;
+        f32 time = player->cull_distance;
+        f32 frame_time;
+        int step;
+        int looks;
+        int str_len;
+        u8 voice;
+        u8* melody_data;
+        u8* voice_tbl;
+        int msg_len;
+
+        if (elapsed <= time) {
+            step = nactorx->_9b8;
+            looks = nactorx->_9bc;
+            voice_tbl = aNPC_act_say_hello_voice_tbl;
+            str_len = mMl_strlen(voice_tbl, 8, 0x20);
+            msg_len = str_len;
+
+            if (str_len != 0) {
+                msg_len = str_len + step;
+            }
+
+            if (mDemo_CheckDemoType() == FALSE) {
+                if (step < str_len) {
+                    voice = voice_tbl[looks * 8 + step];
+                } else {
+                    voice = aNPC_act_say_hello_voice_tbl[step - str_len];
+                }
+
+                sAdo_SetVoiceMode(0);
+                sAdo_SpecChange(mNpc_GetNpcSoundSpec((ACTOR*)nactorx));
+                voice = mMsg_sound_voice_get(voice & 0xFF);
+                sAdo_VoiceSe(voice & 0xFF, 0xFF, 0xFF, 0, 0x20, 0);
+            }
+
+            step++;
+            frame_time = 1.0f;
+            if (step >= msg_len) {
+                step = 0;
+                nactorx->_9c0 = 0;
+            }
+
+            nactorx->_9b8 = step;
+            elapsed = frame_time;
+        }
+
+        nactorx->_9ac = elapsed;
+    }
+}
+
+static void aNPC_act_say_hello_chg_step(NPC_ACTOR* nactorx, u8 step) {
+    nactorx->action.step = step;
+    aNPC_setupAction(nactorx, aNPC_act_say_hello_act_idx[step & 0xFF]);
+}
+
+static void aNPC_act_say_hello_turn(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (!aNPC_act_turn(nactorx)) {
+        nactorx->_9c0 = 1;
+        aNPC_act_say_hello_chg_step(nactorx, aNPC_ACT_SAY_HELLO_STEP_HELLO);
+    }
+}
+
+static void aNPC_act_say_hello_hello(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (!aNPC_act_wait(nactorx)) {
+        aNPC_act_say_hello_chg_step(nactorx, aNPC_ACT_SAY_HELLO_STEP_TALK_WAIT_TURN);
+    }
+}
+
+static void aNPC_act_say_hello_talk_wait(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (nactorx->actor_class.player_distance_xz >= 160.0f) {
+        nactorx->action.step = 0xFF;
+    } else {
+        s16 head_half = nactorx->head.angle_add_y >> 1;
+        s16 angle_diff = nactorx->actor_class.shape_info.rotation.y - nactorx->actor_class.player_angle_y;
+
+        if (angle_diff >= head_half) {
+            nactorx->movement.mv_angl = nactorx->actor_class.player_angle_y;
+            aNPC_act_say_hello_chg_step(nactorx, aNPC_ACT_SAY_HELLO_STEP_TALK_WAIT_TURN);
+        }
+    }
+}
+
+static void aNPC_act_say_hello_talk_wait_turn(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    if (nactorx->actor_class.player_distance_xz >= 160.0f) {
+        nactorx->action.step = 0xFF;
+    } else {
+        if (!aNPC_act_turn(nactorx)) {
+            aNPC_act_say_hello_chg_step(nactorx, aNPC_ACT_SAY_HELLO_STEP_TALK_WAIT_TURN);
+        }
+    }
+}
+
+static void aNPC_act_say_hello_main_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    // clang-format off
+    static aNPC_SUB_PROC act_proc[] = {
+        &aNPC_act_say_hello_turn,
+        &aNPC_act_say_hello_hello,
+        &aNPC_act_say_hello_talk_wait_turn,
+        &aNPC_act_say_hello_talk_wait,
+    };
+    // clang-format on
+
+    aNPC_act_say_hello_voice(nactorx, play);
+    (*act_proc[nactorx->action.step])(nactorx, play);
+}
+
+static void aNPC_act_say_hello_init_proc(NPC_ACTOR* nactorx, GAME_PLAY* play) {
+    u8 looks;
+    ACTOR* player;
+
+    looks = mNpc_GetLooks(nactorx->actor_class.npc_id);
+    nactorx->_9bc = looks;
+    nactorx->_9c0 = 0;
+    nactorx->_9ac = 0.0f;
+    nactorx->_9b8 = 0;
+    nactorx->condition_info._24 = 0; /* TODO: Deluxe offset 0x884 */
+
+    if (nactorx->npc_info.animal != NULL) {
+        u8 flags = nactorx->npc_info.animal->catchphrase[0x1d - 0x10]; /* TODO: proper field */
+        flags = (flags & ~(0x7 << 2));
+        nactorx->npc_info.animal->catchphrase[0x1d - 0x10] = flags;
+        flags = nactorx->npc_info.animal->catchphrase[0x1d - 0x10];
+        flags = (flags & ~(0x1 << 1)) | (1 << 1);
+        nactorx->npc_info.animal->catchphrase[0x1d - 0x10] = flags;
+    }
+
+    player = (ACTOR*)get_player_actor_withoutCheck(play);
+    if (player != NULL) {
+        aNPC_set_head_request(nactorx, 4, aNPC_HEAD_TARGET_ACTOR, player, NULL);
+    }
+
+    nactorx->movement.mv_angl = nactorx->actor_class.player_angle_y;
+    aNPC_act_say_hello_chg_step(nactorx, aNPC_ACT_SAY_HELLO_STEP_TURN);
+}
+
+static void aNPC_act_say_hello_proc(NPC_ACTOR* nactorx, GAME_PLAY* play, int type) {
+    // clang-format off
+    static aNPC_SUB_PROC act_proc[] = {
+        &aNPC_act_say_hello_init_proc,
+        (aNPC_SUB_PROC)&none_proc1,
+        &aNPC_act_say_hello_main_proc,
+    };
+    // clang-format on
+
+    (*act_proc[type])(nactorx, play);
+}
+
+#endif /* VERSION >= VER_GAFU01_00 */

@@ -1,0 +1,122 @@
+/* Deluxe edition: Water Flower player action */
+
+static int Player_actor_CulcAnimation_Water_flower(ACTOR* actorx, f32* last_anim0_cur_frame_p) {
+    return Player_actor_CulcAnimation_Base2(actorx, last_anim0_cur_frame_p);
+}
+
+static void Player_actor_ObjCheck_Water_flower(ACTOR* actorx, GAME* game) {
+    Player_actor_Excute_Corect_forStand(actorx, game);
+}
+
+static void Player_actor_BGcheck_Water_flower(ACTOR* actorx) {
+    Player_actor_BGcheck_common_type1(actorx);
+}
+
+static void Player_actor_Movement_Water_flower(ACTOR* actorx) {
+    Player_actor_Movement_Base_Stop(actorx, FALSE);
+    actorx->shape_info.rotation.y = actorx->world.angle.y;
+}
+
+static void Player_actor_set_eye_pattern_Water_flower(ACTOR* actorx) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    f32 cur_frame = player->keyframe0.frame_control.current_frame;
+
+    if (cur_frame >= 8.0f && cur_frame <= 25.0f) {
+        Player_actor_set_eye_pattern(actorx, 2);
+    } else {
+        Player_actor_set_eye_pattern_normal(actorx);
+    }
+}
+
+static void Player_actor_SetEffect_Water_flower(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    f32 cur_frame = player->keyframe0.frame_control.current_frame;
+
+    if (cur_frame >= 12.0f && cur_frame <= 20.0f) {
+        int water_mode = player->main_data.water_flower.water_mode;
+        const xyz_t* target_pos = &player->main_data.water_flower.target_pos;
+        s16 target_angle = player->main_data.water_flower.target_angle;
+
+        if (water_mode == 0) {
+            Player_actor_Water_Single_Flower(target_pos, target_angle, game);
+        } else {
+            Player_actor_Water_3x3_Flower(target_pos, target_angle, game);
+        }
+    }
+}
+
+static void Player_actor_request_proc_index_fromWater_flower(ACTOR* actorx, GAME* game, int end_flag) {
+    if (end_flag != 0) {
+        Player_actor_SettleRequestMainIndexPriority(actorx);
+        Player_actor_request_main_wait_all(game, -5.0f, 0.0f, 0, mPlayer_REQUEST_PRIORITY_1);
+    }
+}
+
+static int Player_actor_request_main_water_flower_all(GAME* game, const xyz_t* pos, s16 angle, int water_mode,
+                                                      int priority) {
+    if (Player_actor_check_request_main_able(game, mPlayer_INDEX_WATER_FLOWER, priority)) {
+        PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+
+        player->requested_main_index_data.water_flower.target_pos = *pos;
+        player->requested_main_index_data.water_flower.target_angle = angle;
+        player->requested_main_index_data.water_flower.water_mode = water_mode;
+
+        Player_actor_request_main_index(game, mPlayer_INDEX_WATER_FLOWER, priority);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void Player_actor_setup_main_Water_flower(ACTOR* actorx, GAME* game) {
+    PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
+    int anim1_idx;
+    int part_table_idx;
+
+    player->main_data.water_flower.target_pos = player->requested_main_index_data.water_flower.target_pos;
+    player->main_data.water_flower.target_angle = player->requested_main_index_data.water_flower.target_angle;
+    player->main_data.water_flower.water_mode = player->requested_main_index_data.water_flower.water_mode;
+
+    Player_actor_SetupItem_Base1(actorx, mPlayer_ANIM_GURATUKU1, -5.0f, &anim1_idx, &part_table_idx);
+    Player_actor_InitAnimation_Base2(actorx, game, mPlayer_ANIM_GURATUKU1, anim1_idx,
+                                     1.0f, 1.0f, 0.5f, -5.0f, cKF_FRAMECONTROL_STOP, part_table_idx);
+    Player_actor_setup_main_Base(actorx, game);
+}
+
+static void Player_actor_main_Water_flower(ACTOR* actorx, GAME* game) {
+    int end_flag;
+    f32 frame_calc;
+
+    Player_actor_Movement_Water_flower(actorx);
+    Player_actor_Reinput_force_position_angle(actorx, game);
+    end_flag = Player_actor_CulcAnimation_Water_flower(actorx, &frame_calc);
+    Player_actor_recover_lean_angle(actorx);
+    Player_actor_set_eye_pattern_Water_flower(actorx);
+    Player_actor_ObjCheck_Water_flower(actorx, game);
+    Player_actor_BGcheck_Water_flower(actorx);
+    Player_actor_Item_main(actorx, game);
+    Player_actor_request_proc_index_fromWater_flower(actorx, game, end_flag);
+}
+
+static int Player_actor_CheckAndRequest_main_watercan_all(GAME* game, int priority) {
+    if (Player_actor_CheckController_forWaterCan(game)) {
+        PLAYER_ACTOR* player = GET_PLAYER_ACTOR_GAME(game);
+        s16 angle = player->actor_class.world.angle.y;
+        s8 kind = Player_actor_Get_ItemKind(&player->actor_class, player->now_main_index);
+        int water_mode;
+
+        /* Gold watering can waters a 3x3 grid, normal waters a single tile */
+        if (kind == mPlayer_ITEM_KIND_GOLD_WATERING_CAN) {
+            water_mode = 1;
+        } else {
+            water_mode = 0;
+        }
+
+        if (Player_actor_request_main_water_flower_all(game, &player->actor_class.world.position, angle,
+                                                       water_mode, priority)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}

@@ -46,7 +46,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 # =============================================================================
 add_compile_definitions(
     TARGET_PC
-    VERSION=0
+    VERSION=2
     F3DEX_GBI_2
     NDEBUG
     _LANGUAGE_C    # Required for N64 GBI/ultratypes headers
@@ -71,6 +71,7 @@ else()
     add_compile_options(
         -fno-strict-aliasing
         -fwrapv
+        -include "${CMAKE_CURRENT_SOURCE_DIR}/include/glibc_compat.h"
     )
     # On 32-bit x86 Linux, GCC defaults to x87 FPU which uses 80-bit extended
     # precision for ALL float ops. This causes angle interpolation to overshoot
@@ -339,6 +340,7 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_overlay.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_stubs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_stubs_cpp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_deluxe_stubs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_assets.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_disc.c
 )
@@ -383,6 +385,13 @@ set_source_files_properties(
     "${DECOMP_ROOT}/src/static/jaudio_NES/internal/ja_calc.c"
     "${DECOMP_ROOT}/src/static/jaudio_NES/internal/jammain_2.c"
     "${DECOMP_ROOT}/src/static/jaudio_NES/game/game64.c"
+    PROPERTIES LANGUAGE CXX COMPILE_OPTIONS "${DECOMP_CXX_WARN_FLAGS}"
+)
+
+# m_notice.c and m_timer.c use C++ templates under VER_DELUXE — compile as C++.
+set_source_files_properties(
+    "${DECOMP_ROOT}/src/game/m_notice.c"
+    "${DECOMP_ROOT}/src/game/m_timer.c"
     PROPERTIES LANGUAGE CXX COMPILE_OPTIONS "${DECOMP_CXX_WARN_FLAGS}"
 )
 

@@ -27,4 +27,61 @@ extern void mNtc_set_auto_nwrite_data();
 }
 #endif
 
+#ifdef __cplusplus
+
+extern int mNtc_get_message_of_the_week();
+
+class BBSList {
+public:
+    int mCount;
+    int mNumSet;
+    int* mItems;
+    int* mIndices;
+
+    virtual ~BBSList();
+
+    int GetIdx(int i) const;
+    int GetItem(int i) const;
+};
+
+template <typename T>
+class RngList : public BBSList {
+public:
+    virtual ~RngList();
+
+    void Reset();
+    void AddIdx(int idx);
+    void ClearIdx(int idx);
+    BOOL IsSet(int idx) const;
+    BOOL IsItemSet(int item) const;
+    int GetN(int* out, int n);
+    T Get();
+    T GetAndCrossOff();
+};
+
+template <typename T>
+class InverseRngList : public RngList<T> {
+public:
+    virtual ~InverseRngList();
+
+    void Reset();
+    void AddIdx(int idx);
+    void ClearIdx(int idx);
+    BOOL IsSet(int idx) const;
+    int GetN(int* out, int n);
+    T Get();
+    T GetAndCrossOff();
+};
+
+template <typename T>
+class BackedInverseRngList : public InverseRngList<T> {
+public:
+    u32* mBackingData;
+
+    BackedInverseRngList(u32* data, int count);
+    virtual ~BackedInverseRngList();
+};
+
+#endif /* __cplusplus */
+
 #endif
