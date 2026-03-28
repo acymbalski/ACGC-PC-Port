@@ -170,8 +170,24 @@ typedef struct Save_s {
     /* 0x02418B */ u8 _2418B[0x24198 - 0x2418B];
     /* 0x024198 */ OSTime travel_hard_time;
     /* 0x0241A0 */ lbRTC_time_c saved_auto_nwrite_time; /* save data notice time used for fishing tourney results? */
-    /* 0x0241A8 */ u8 _241A8[0x242A0 - 0x241A8];
+    /* 0x0241A8 */ u8 _241A8[0x242B0 - 0x241A8];
+#if VERSION >= VER_DELUXE
+    /* 0x0242B0 */ int monument_pos1;
+    /* 0x0242B4 */ int monument_pos2;
+    /* 0x0242B8 */ u8 monument_exists;
+    /* 0x0242B9 */ u8 _242B9[0x242BC - 0x242B9];
+    /* 0x0242BC */ u16 watered_flowers[FG_BLOCK_X_NUM * FG_BLOCK_Z_NUM][UT_Z_NUM];
+    /* 0x02467C */ Kabu_price_new_c kabu_price_new; /* Deluxe half-day Stalk Market info */
+    /* 0x0246A0 */ /* end of save */
+#endif
 } Save_t;
+
+/* Save_t copy size varies by version: Deluxe has extra fields at the end */
+#if VERSION >= VER_DELUXE
+#define SAVE_T_COPY_SIZE sizeof(Save_t)
+#else
+#define SAVE_T_COPY_SIZE 0x242A0
+#endif
 
 typedef union save_u {
     Save_t save;
@@ -329,6 +345,9 @@ typedef struct common_data_s {
     /* 0x02DBE8 */ size_t carde_program_size;  /* size of current e-Reader program data */
     /* 0x02DBEC */ int unk_nook_present_count; /* something possibly to do withhanding over password present? */
     /* 0x02DBF0 */ u8 pad[16];
+#if VERSION >= VER_DELUXE
+    u8 free_camera_mode; /* when TRUE, camera follows player across acres without scroll transitions */
+#endif
 } common_data_t;
 
 extern common_data_t common_data;
@@ -379,6 +398,11 @@ extern common_data_t common_data;
 extern void common_data_reinit();
 extern void common_data_init();
 extern void common_data_clear();
+
+#if VERSION >= VER_DELUXE
+#define mCD_FREE_CAMERA_MODE (Common_Get(free_camera_mode))
+#define mCD_SET_FREE_CAMERA_MODE(val) Common_Set(free_camera_mode, (val))
+#endif
 
 //clang-format on
 

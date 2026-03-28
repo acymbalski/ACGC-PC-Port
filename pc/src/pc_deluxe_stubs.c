@@ -210,6 +210,17 @@ u16 mEA_getcrc16(u8* data, int size) {
     return 0;
 }
 
+/* m_museum.c: check fossil count and send purchase info mail if threshold met.
+ * Safe stub: mMmd_CountDisplayedFossil() will be 0 on a new game. */
+#include "m_museum.h"
+void mMsm_CheckSendPurchaseInfoMail() {}
+
+/* m_kabu_manager.c: Deluxe half-day Stalk Market price functions. */
+#include "m_kabu_manager.h"
+void Kabu_decide_price_schedule_new() {}
+u16  Kabu_get_price_new() { return 100; }
+void Kabu_manager_new() {}
+
 /* ======================================================================
  * Category 5: Deluxe private-data stubs (Phase 1)
  *

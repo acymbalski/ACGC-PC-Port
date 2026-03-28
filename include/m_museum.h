@@ -60,6 +60,9 @@ extern u8 mMsm_GetDepositBlockNum(u8 record);
 extern void mMsm_DepositFossil(u8 deposit_record, int fossil_count, u16* cancel_ut, int send_order_info);
 extern void mMsm_SetCompMail();
 extern void mMsm_SendCompMail();
+#if VERSION >= VER_DELUXE
+extern void mMsm_CheckSendPurchaseInfoMail();
+#endif
 
 #ifdef __cplusplus
 }

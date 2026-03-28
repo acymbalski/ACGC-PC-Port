@@ -216,7 +216,48 @@ static int mSDI_StartInitNew(GAME* game, int player_no, int malloc_flag) {
     /* Tree -> Cedar Tree */
     mAGrw_ChangeTree2Cedar();
 
-    
+#if VERSION >= VER_DELUXE
+    /* Place a town flag pole near the train station */
+    {
+        static const s8 offsets[][2] = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {-1, 1}, {1, -1}, {-1, -1},
+            {2, 0}, {-2, 0}, {0, 2}, {0, -2}
+        };
+        int fbx;
+        int fbz;
+        int found = FALSE;
+
+        for (fbz = 0; fbz < FG_BLOCK_Z_NUM && !found; fbz++) {
+            for (fbx = 0; fbx < FG_BLOCK_X_NUM && !found; fbx++) {
+                int utx;
+                int utz;
+                mActor_name_t* items = &Save_Get(fg[fbz][fbx].items[0][0]);
+
+                for (utz = 0; utz < UT_Z_NUM && !found; utz++) {
+                    for (utx = 0; utx < UT_X_NUM && !found; utx++) {
+                        if (items[utz * UT_X_NUM + utx] == TRAIN_STATION) {
+                            int oi;
+
+                            for (oi = 0; oi < (int)(sizeof(offsets) / sizeof(offsets[0])) && !found; oi++) {
+                                int fx = utx + offsets[oi][0];
+                                int fz = utz + offsets[oi][1];
+
+                                if (fx >= 0 && fx < UT_X_NUM &&
+                                    fz >= 0 && fz < UT_Z_NUM &&
+                                    items[fz * UT_X_NUM + fx] == EMPTY_NO) {
+                                    items[fz * UT_X_NUM + fx] = FLAG;
+                                    found = TRUE;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+#endif
+
     priv = Save_Get(private_data);
     mMld_SetDefaultMelody();
     mLd_LandDataInit();
@@ -586,6 +627,9 @@ extern void mSDI_StartInitAfter(GAME* game, int renew_mode, int malloc_flag) {
     mPr_StartSetCompleteTalkInfo();
     mMsm_SendInformationMail();
     mMsm_SendCompMail();
+#if VERSION >= VER_DELUXE
+    mMsm_CheckSendPurchaseInfoMail();
+#endif
     mFI_SetFirstSetShell();
     mMsr_FirstClearMushroom();
     mSN_decide_msg();

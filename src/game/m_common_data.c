@@ -1,9 +1,7 @@
 #include "m_common_data.h"
 
 #include "libultra/libultra.h"
-#ifdef TARGET_PC
-#include "m_card.h"
-#endif
+#include <string.h>
 
 common_data_t common_data;
 
@@ -13,6 +11,18 @@ extern void common_data_reinit(){
 
     state = Common_Get(pad_connected);
 
+#ifdef TARGET_PC
+    /* On PC, save data lives in common_data.save (loaded from disk).
+     * Preserve it across reinit — on GC, saves live on the memory card
+     * and get loaded later, but on PC we loaded it at boot. */
+    extern int pc_save_loaded;
+    static Save save_backup; /* static: Save is ~152KB, too large for stack */
+    int had_save = pc_save_loaded;
+    if (had_save) {
+        memcpy(&save_backup, &common_data.save, sizeof(Save));
+    }
+#endif
+
     bzero(&common_data, sizeof(common_data));
     Common_Set(transition.wipe_type, -1);
     Common_Set(game_started,1);
@@ -21,12 +31,13 @@ extern void common_data_reinit(){
     Common_Set(demo_profiles[1], mAc_PROFILE_NUM); /* cleared state */
     Common_Set(pad_connected, state);
 
+#if VERSION >= VER_DELUXE
+    mCD_SET_FREE_CAMERA_MODE(FALSE);
+#endif
+
 #ifdef TARGET_PC
-    /* GC re-reads the memory card here. We re-read the GCI file, same idea.
-     * Title demo trashes the in-memory save (player/animal slots), so we
-     * need a fresh copy from disk before anything touches it again. */
-    if (pc_save_loaded) {
-        pc_save_reload();
+    if (had_save) {
+        memcpy(&common_data.save, &save_backup, sizeof(Save));
     } else
 #endif
     mFRm_ClearSaveCheckData(Save_GetPointer(save_check));
