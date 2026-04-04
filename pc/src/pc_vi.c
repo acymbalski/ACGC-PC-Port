@@ -2,6 +2,7 @@
 #include "pc_platform.h"
 #include "pc_settings.h"
 #include "pc_overlay.h"
+#include "pc_snapshot.h"
 
 /* GL timing and frame reset from pc_gx.c */
 extern void pc_gx_frame_timing_snapshot(void);
@@ -215,6 +216,9 @@ void VIWaitForRetrace(void) {
             logic_count_snap = s_logic_tick_count;
         }
     }
+
+    /* Check for pending suspend/restart at the clean frame boundary */
+    pc_snapshot_check_frame_boundary();
 
     /* Reset batch start time for next visual frame */
     frame_start_time = SDL_GetPerformanceCounter();

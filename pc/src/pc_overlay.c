@@ -3,6 +3,7 @@
 #include "pc_overlay.h"
 #include "pc_settings.h"
 #include "pc_keybindings.h"
+#include "pc_snapshot.h"
 
 /* ---- Vertex type ---- */
 typedef struct { float x, y, u, v, r, g, b, a; } OvVtx;
@@ -70,6 +71,9 @@ enum {
     MI_CULL_MAX_DISTANCE,
     MI_SHADOW_QUALITY,
     MI_REDUCE_ACRE_DRAW,
+    /* System tab */
+    MI_SUSPEND,
+    MI_RESTART,
     MI_KB_BASE,
     MI_COUNT = MI_KB_BASE + KB_COUNT,
 };
@@ -100,6 +104,8 @@ static const char* menu_labels[MI_COUNT] = {
     [MI_CULL_MAX_DISTANCE]  = "Cull max dist (u)",
     [MI_SHADOW_QUALITY]     = "Shadow Quality",
     [MI_REDUCE_ACRE_DRAW]   = "Acre Draw",
+    [MI_SUSPEND]            = "Suspend",
+    [MI_RESTART]            = "Restart",
     /* MI_KB_BASE..MI_KB_BASE+KB_COUNT-1: NULL, handled via pc_keybinding_label() */
 };
 
@@ -110,8 +116,8 @@ static const char* get_item_label(int i) {
 }
 
 /* ---- Menu tabs ---- */
-enum { TAB_VIDEO, TAB_AUDIO, TAB_CONTROLS, TAB_DEBUG, TAB_PERF, TAB_COUNT };
-static const char* tab_labels[TAB_COUNT] = { "VIDEO", "AUDIO", "CTRL", "DEBUG", "PERF" };
+enum { TAB_VIDEO, TAB_AUDIO, TAB_CONTROLS, TAB_DEBUG, TAB_PERF, TAB_SYS, TAB_COUNT };
+static const char* tab_labels[TAB_COUNT] = { "VIDEO", "AUDIO", "CTRL", "DEBUG", "PERF", "SYS" };
 static int s_active_tab = 0;
 
 /* Which tab each menu item belongs to (indexed by MI_*) */
@@ -140,6 +146,8 @@ static const int menu_item_tab[MI_COUNT] = {
     [MI_CULL_MAX_DISTANCE]  = TAB_PERF,
     [MI_SHADOW_QUALITY]     = TAB_PERF,
     [MI_REDUCE_ACRE_DRAW]   = TAB_PERF,
+    [MI_SUSPEND]            = TAB_SYS,
+    [MI_RESTART]            = TAB_SYS,
     /* MI_KB_BASE..MI_KB_BASE+KB_COUNT-1: handled by item_tab() helper below */
 };
 
@@ -234,6 +242,8 @@ static void menu_get_value(int item, char* buf, int sz) {
         snprintf(buf, sz, "%s", arnames[ar]);
         break;
     }
+    case MI_SUSPEND: snprintf(buf, sz, "Press >"); break;
+    case MI_RESTART: snprintf(buf, sz, "Press >"); break;
     default:
         if (item >= MI_KB_BASE && item < MI_KB_BASE + KB_COUNT) {
             int kb_idx = item - MI_KB_BASE;
@@ -412,6 +422,18 @@ static void menu_adjust(int item, int dir) {
         g_pc_settings.reduce_acre_draw = v;
         break;
     }
+    case MI_SUSPEND:
+        if (dir == 1) {
+            pc_snapshot_request_suspend();
+            pc_overlay_menu_toggle(); /* close menu so suspend is visible */
+        }
+        break;
+    case MI_RESTART:
+        if (dir == 1) {
+            pc_snapshot_request_restart();
+            pc_overlay_menu_toggle();
+        }
+        break;
     default:
         if (item >= MI_KB_BASE && item < MI_KB_BASE + KB_COUNT && dir == 1) {
             ctrl_capture_idx = item - MI_KB_BASE;
@@ -924,6 +946,8 @@ static void draw_menu(float cw, float ch, float pad) {
         ov_string("Any key: bind  Back: cancel", tx, ty, cw, ch, 0.5f, 0.8f, 0.5f, 1);
     } else if (s_active_tab == TAB_CONTROLS) {
         ov_string(">:rebind  X/Del:clear", tx, ty, cw, ch, 0.5f, 0.5f, 0.5f, 1);
+    } else if (s_active_tab == TAB_SYS) {
+        ov_string("L/R:Tab  U/D:Nav  >:Confirm", tx, ty, cw, ch, 0.5f, 0.5f, 0.5f, 1);
     } else {
         ov_string("L/R:Tab  U/D:Nav  L/R:Adj", tx, ty, cw, ch, 0.5f, 0.5f, 0.5f, 1);
     }

@@ -30,6 +30,7 @@
 #include "pc_diag.h"
 #include "pc_platform.h"
 #include "pc_settings.h"
+#include "pc_snapshot.h"
 #include <setjmp.h>
 extern int g_pc_running;
 #endif
@@ -373,6 +374,15 @@ extern void graph_proc(void* arg) {
 #ifdef TARGET_PC
     if (g_pc_model_viewer) {
         dlftbl = &game_dlftbls[10]; /* model viewer */
+    } else if (pc_snapshot_was_restored()) {
+        /* Skip title/select: jump directly to the play state.
+         * The arena was already loaded with snapshotted game state by OSInit().
+         * play_init() will read world/player data from the restored arena.
+         * NOTE: BSS-resident globals normally set by first_game/second_game/select
+         * (common_data, BGM state, etc.) will be at their zero-initialised defaults.
+         * This is sufficient for most gameplay; edge cases can be fixed as found. */
+        printf("[RESTORE] Skipping to play state (game_dlftbls[2])\n");
+        dlftbl = &game_dlftbls[2];
     }
 #endif
     graph_ct(&graph_class);

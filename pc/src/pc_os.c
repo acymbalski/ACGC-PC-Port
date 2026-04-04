@@ -1,5 +1,6 @@
 /* pc_os.c - Dolphin OS replacement: arena, timers, threads, message queues */
 #include "pc_platform.h"
+#include "pc_snapshot.h"
 
 #include <time.h>
 
@@ -298,7 +299,13 @@ void OSInit(void) {
 
         arena_lo = arena_memory + 0x3100;
         arena_hi = arena_memory + PC_MAIN_MEMORY_SIZE;
-        printf("[PC] Arena at %p - %p (24MB)\n", (void*)arena_memory, (void*)arena_hi);
+        printf("[PC] Arena at %p - %p (%dMB)\n", (void*)arena_memory, (void*)arena_hi,
+               PC_MAIN_MEMORY_SIZE / (1024 * 1024));
+
+        /* Attempt snapshot restore — overwrites the zeroed arena if a valid
+         * snapshot exists.  graph_proc() checks pc_snapshot_was_restored() to
+         * skip the title/select sequence and jump directly to play state. */
+        pc_snapshot_try_restore();
     }
     time_base_start = SDL_GetPerformanceCounter();
     /* compute ticks from GC epoch (Jan 1, 2000) to now, with timezone */
