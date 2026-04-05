@@ -28,6 +28,7 @@
 #include "sys_ucode.h"
 #include "zurumode.h"
 #ifdef TARGET_PC
+#include "m_card.h"
 #include "pc_model_viewer.h"
 #include "pc_diag.h"
 #include "pc_platform.h"
@@ -310,7 +311,24 @@ static void graph_main(GRAPH* this, GAME* game) {
     game->disable_display = FALSE;
     GRAPH_SET_DOING_POINT(this, GAME_MAIN);
     PC_DIAG(10, "graph_main: calling game_main (exec=%p)\n", (void*)game->exec);
+#ifdef TARGET_PC
+    {
+        static jmp_buf game_main_jmpbuf;
+        pc_crash_set_jmpbuf(&game_main_jmpbuf);
+        if (setjmp(game_main_jmpbuf) != 0) {
+            fprintf(stderr, "[PC] CRASH in game_main! crash_addr=0x%llX data_addr=0x%llX doing_point=%d doing_point_specific=%d\n",
+                   (unsigned long long)pc_crash_get_addr(),
+                   (unsigned long long)pc_crash_get_data_addr(),
+                   game->doing_point, game->doing_point_specific);
+            g_pc_running = 0; /* halt after logging */
+        } else {
+            game_main(game);
+        }
+        pc_crash_set_jmpbuf(NULL);
+    }
+#else
     game_main(game);
+#endif
     PC_DIAG(10, "graph_main: game_main returned, frame_counter=%d\n", this->frame_counter);
     GRAPH_SET_DOING_POINT(this, GAME_MAIN_FINISHED);
     if (ResetStatus < IRQ_RESET_DELAY) {
@@ -370,6 +388,46 @@ static void graph_main(GRAPH* this, GAME* game) {
 }
 #endif
 
+#ifdef TARGET_PC
+/* Update common_data.door_data with the player's actual current world position
+ * and facing direction, so that restoring from a snapshot places the player at
+ * their mid-game location rather than the last door-exit position.
+ *
+ * Called just before the snapshot is written to disk via g_pc_snapshot_pre_save_hook.
+ * Uses only ACTOR* (no PLAYER_ACTOR needed) to avoid extra includes. */
+static void pc_snapshot_update_player_doordata(void) {
+    GAME_PLAY* play = (GAME_PLAY*)gamePT;
+    if (play == NULL) return;
+    if (!Common_Get(player_actor_exists)) return;
+
+    ACTOR* player = play->actor_info.list[ACTOR_PART_PLAYER].actor;
+    if (player == NULL) return;
+
+    /* Capture world position into door_data so Scene_Proc_Player_Ptr restores
+     * the player at their actual location instead of the house-door exit. */
+    s16 px = (s16)player->world.position.x;
+    s16 py = (s16)player->world.position.y;
+    s16 pz = (s16)player->world.position.z;
+
+    /* Quantize rotation.y to the nearest of 8 compass directions (0x2000 steps).
+     * angle_table[i] = i * 45 degrees. */
+    u8 ori = (u8)(((u16)(player->shape_info.rotation.y + 0x1000)) >> 13) & 7;
+
+    common_data.door_data.exit_position.x = px;
+    common_data.door_data.exit_position.y = py;
+    common_data.door_data.exit_position.z = pz;
+    common_data.door_data.exit_orientation = ori;
+    /* next_scene_id must be non-zero for Scene_Proc_Player_Ptr to use it;
+     * convention is current_scene + 1. */
+    common_data.door_data.next_scene_id = (int)Save_Get(scene_no) + 1;
+    /* extra_data = 0 → default INTRO spawn animation (standing idle). */
+    common_data.door_data.extra_data = 0;
+
+    printf("[SNAPSHOT] Player doordata updated: pos=(%d,%d,%d) ori=%d scene=%d\n",
+           (int)px, (int)py, (int)pz, (int)ori, (int)Save_Get(scene_no));
+}
+#endif
+
 extern void graph_proc(void* arg) {
     GRAPH* __graph = &graph_class;
     DLFTBL_GAME* dlftbl = &game_dlftbls[0];
@@ -407,12 +465,34 @@ extern void graph_proc(void* arg) {
         mVibctl_ct();
         printf("[RESTORE] mVibctl_ct() complete\n");
 
+        /* first_game_init normally calls this to allocate ARAM blocks for
+         * mail/diary/custom-design data. Without it, l_aram_block_p_table[]
+         * stays NULL which breaks any code path that reads/writes ARAM data. */
+        printf("[RESTORE] Calling mCD_save_data_aram_malloc()...\n");
+        mCD_save_data_aram_malloc();
+        printf("[RESTORE] mCD_save_data_aram_malloc() complete\n");
+
+        /* second_game_init normally sets this after loading the save from disk.
+         * The save is already in common_data (restored from snapshot), so mark
+         * it loaded so common_data_reinit() and pc_save_reload() behave correctly
+         * if ever called. */
+        {
+            extern int pc_save_loaded;
+            pc_save_loaded = 1;
+            printf("[RESTORE] pc_save_loaded set to 1\n");
+        }
+
         printf("[RESTORE] Skipping to play state (game_dlftbls[2])\n");
         printf("[RESTORE] ============================================\n");
         dlftbl = &game_dlftbls[2];
     } else {
         printf("[GRAPH] Normal boot — starting from title screen (game_dlftbls[0])\n");
     }
+#endif
+#ifdef TARGET_PC
+    /* Register the player-position pre-save hook unconditionally so snapshots
+     * always capture the actual mid-game player location. */
+    g_pc_snapshot_pre_save_hook = pc_snapshot_update_player_doordata;
 #endif
     printf("[GRAPH] Calling graph_ct(&graph_class)...\n");
     graph_ct(&graph_class);
@@ -490,7 +570,9 @@ extern void graph_proc(void* arg) {
         dlftbl = game_get_next_game_dlftbl(game);
         GRAPH_SET_DOING_POINT(__graph, GAME_18);
         GRAPH_SET_DOING_POINT(__graph, GAME_DT);
+        printf("[GRAPH] Calling game_dt (play_cleanup)...\n");
         game_dt(game);
+        printf("[GRAPH] game_dt complete\n");
         GRAPH_SET_DOING_POINT(__graph, GAME_DT_FINISHED);
         free(game);
         game_class_p = NULL;

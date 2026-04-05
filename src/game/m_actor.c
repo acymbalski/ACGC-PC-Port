@@ -822,6 +822,18 @@ extern ACTOR* Actor_info_make_actor(Actor_info* actor_info, GAME* game, s16 prof
                            move_actor_list_idx, name_id, arg);
     Actor_info_part_new(actor_info, actor, profile->part);
     mNpc_SetNpcinfo(actor, npc_info_idx);
+#ifdef TARGET_PC
+    {
+        int _ntype = ITEM_NAME_GET_TYPE(name_id);
+        if (_ntype == NAME_TYPE_STRUCT) {
+            printf("[ACTOR_BORN] STRUCT id=0x%04X profile=%d bx=%d bz=%d pos=(%.0f,%.0f,%.0f)\n",
+                   (unsigned)name_id, profile_no, (int)block_x, (int)block_z, (double)x, (double)y, (double)z);
+        } else if (_ntype == NAME_TYPE_NPC || _ntype == NAME_TYPE_SPNPC) {
+            printf("[ACTOR_BORN] NPC/SPNPC id=0x%04X type=%d profile=%d bx=%d bz=%d pos=(%.0f,%.0f,%.0f)\n",
+                   (unsigned)name_id, _ntype, profile_no, (int)block_x, (int)block_z, (double)x, (double)y, (double)z);
+        }
+    }
+#endif
     Actor_ct(actor, game);
 
     return actor;
@@ -929,12 +941,24 @@ extern ACTOR* Actor_info_delete(Actor_info* actor_info, ACTOR* actor, GAME* game
     switch (ITEM_NAME_GET_TYPE(name_id)) {
         case NAME_TYPE_SPNPC:
         case NAME_TYPE_NPC: {
-            (*Common_Get(clip).npc_clip->free_actor_area_proc)(actor);
+            if (Common_Get(clip).npc_clip == NULL) {
+                printf("[ACTOR_DELETE] ERROR: npc_clip is NULL for NPC actor id=0x%04X name=0x%04X — falling back to zelda_free\n",
+                       (unsigned)actor->id, (unsigned)name_id);
+                zelda_free(actor);
+            } else {
+                (*Common_Get(clip).npc_clip->free_actor_area_proc)(actor);
+            }
             break;
         }
 
         case NAME_TYPE_STRUCT: {
-            (*Common_Get(clip).structure_clip->free_actor_area_proc)((STRUCTURE_ACTOR*)actor);
+            if (Common_Get(clip).structure_clip == NULL) {
+                printf("[ACTOR_DELETE] ERROR: structure_clip is NULL for STRUCT actor id=0x%04X name=0x%04X — falling back to zelda_free\n",
+                       (unsigned)actor->id, (unsigned)name_id);
+                zelda_free(actor);
+            } else {
+                (*Common_Get(clip).structure_clip->free_actor_area_proc)((STRUCTURE_ACTOR*)actor);
+            }
             break;
         }
 

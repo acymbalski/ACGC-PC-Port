@@ -819,6 +819,9 @@ static void aNPC_actor_ct_c(ACTOR* actorx, GAME* game) {
     aNPC_keep_cloth_data_area(obj_ex);
 
     if (CLIP(npc_clip) == NULL) {
+#ifdef TARGET_PC
+        printf("[NPC_CTRL] init: npc_clip was NULL — registering &aNPC_clip=%p\n", (void*)&aNPC_clip);
+#endif
         CLIP(npc_clip) = &aNPC_clip;
         bzero(&aNPC_clip, sizeof(aNPC_clip));
 

@@ -49,6 +49,9 @@ static int s_suspend_requested = 0;
 static int s_restart_requested = 0;
 static int s_was_restored      = 0;
 
+/* ---- Pre-save hook (set from game code, e.g. graph.c) --------------------- */
+void (*g_pc_snapshot_pre_save_hook)(void) = NULL;
+
 /* ---- CRC32 (IEEE 802.3 polynomial) --------------------------------------- */
 static uint32_t crc32_buf(const void* data, size_t len) {
     static uint32_t table[256];
@@ -82,6 +85,9 @@ static uint32_t crc32_buf(const void* data, size_t len) {
 static void pc_snapshot_fixup_common_data_ptrs(void) {
     u8 pno = common_data.player_no;
     printf("[RESTORE] Fixing up common_data derived pointers (player_no=%d)\n", (int)pno);
+    printf("[RESTORE] Door data before fixup: next_scene_id=%d door_actor_name=0x%04X\n",
+           (int)common_data.door_data.next_scene_id, (unsigned)common_data.door_data.door_actor_name);
+    printf("[RESTORE] Scene number: %d\n", (int)common_data.save.save.scene_no);
     if (pno < PLAYER_NUM) {
         common_data.now_private = &common_data.save.save.private_data[pno];
         common_data.now_home    = &common_data.save.save.homes[mHS_get_arrange_idx(pno)];
@@ -92,6 +98,29 @@ static void pc_snapshot_fixup_common_data_ptrs(void) {
     }
     printf("[RESTORE]   now_private=%p  now_home=%p\n",
            (void*)common_data.now_private, (void*)common_data.now_home);
+
+    /* carde_program_p points to a zelda_malloc (THA) allocation from the
+     * snapshot session.  The THA is re-created fresh each play_init, so that
+     * pointer is dangling.  zelda_free() on it in mEA_CleanCardDLProgram()
+     * would crash.  Clear it so the e-Reader slot starts empty. */
+    if (common_data.carde_program_p != NULL) {
+        printf("[RESTORE]   clearing stale carde_program_p=%p (size=%zu)\n",
+               (void*)common_data.carde_program_p, common_data.carde_program_size);
+        common_data.carde_program_p   = NULL;
+        common_data.carde_program_size = 0;
+    }
+
+    /* pluss_bridge_pos points to static actor data from the snapshot session.
+     * The pointer target is not in common_data or the arena, so it's either
+     * a stale THA/BSS address.  NULL it out so the audio system treats the
+     * extra bridge as absent; it will be re-set when the relevant actor spawns. */
+    if (common_data.pluss_bridge_pos != NULL) {
+        printf("[RESTORE]   clearing stale pluss_bridge_pos=%p\n",
+               (void*)common_data.pluss_bridge_pos);
+        common_data.pluss_bridge_pos = NULL;
+    }
+
+    printf("[RESTORE] Common_data fixup complete\n");
 }
 
 /* ---- Public API ----------------------------------------------------------- */
@@ -124,6 +153,14 @@ void pc_snapshot_check_frame_boundary(void) {
         fprintf(stderr, "[SNAPSHOT] pc_arena_base=%p, pc_arena_end=%p\n",
                 (void*)pc_arena_base, (void*)pc_arena_end);
         return;
+    }
+
+    /* Give game code a chance to update common_data (e.g. player position in
+     * door_data) before we write it to disk. */
+    if (g_pc_snapshot_pre_save_hook) {
+        printf("[SNAPSHOT] Calling pre-save hook...\n");
+        g_pc_snapshot_pre_save_hook();
+        printf("[SNAPSHOT] Pre-save hook done\n");
     }
 
     size_t ram_size = (size_t)(pc_arena_end - pc_arena_base);

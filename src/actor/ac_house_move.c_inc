@@ -450,8 +450,15 @@ static void aHUS_open_door(HOUSE_ACTOR* house, GAME_PLAY* play) {
     int next_act;
 
     if (cKF_SkeletonInfo_R_play(&house->keyframe) == cKF_STATE_STOPPED) {
+#ifdef TARGET_PC
+        printf("[HOUSE_DOOR] Animation stopped, request_type=%d anim_state=%d\n",
+               house->request_type, (int)cKF_SkeletonInfo_R_play(&house->keyframe));
+#endif
         switch (house->request_type) {
             case 3:
+#ifdef TARGET_PC
+                printf("[HOUSE_DOOR] request_type=3 — calling goto_other_scene\n");
+#endif
                 aHUS_rewrite_out_data(house, play);
                 goto_other_scene(play, &aHUS_npc_house_door_data, FALSE);
                 play->fb_fade_type = FADE_TYPE_DEMO;
@@ -460,6 +467,9 @@ static void aHUS_open_door(HOUSE_ACTOR* house, GAME_PLAY* play) {
                 break;
             case 1:
             case 2:
+#ifdef TARGET_PC
+                printf("[HOUSE_DOOR] request_type=%d — going to WAIT state\n", house->request_type);
+#endif
                 house->actor_class.state_bitfield = House_Profile.initial_flags_state;
                 next_act = aHUS_ACTION_WAIT;
                 break;

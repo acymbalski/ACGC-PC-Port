@@ -471,6 +471,18 @@ static void Scene_Proc_Door_Data_Ptr(GAME_PLAY* play, Scene_Word_u* scene_data) 
 
     play->door_info.num_doors = scene_data->door_data.num_doors;
     play->door_info.door_data_p = data_p;
+#ifdef TARGET_PC
+    printf("[DOOR_PROC] Scene_Proc_Door_Data_Ptr: num_doors=%d data_p=%p\n",
+           scene_data->door_data.num_doors, (void*)data_p);
+    {
+        int _di;
+        for (_di = 0; _di < scene_data->door_data.num_doors && data_p; _di++) {
+            printf("[DOOR_PROC]   door[%d]: next_scene=%d exit_orient=%d door_name=0x%04X wipe_type=%d\n",
+                   _di, data_p[_di].next_scene_id, data_p[_di].exit_orientation,
+                   (unsigned)data_p[_di].door_actor_name, data_p[_di].wipe_type);
+        }
+    }
+#endif
 }
 
 extern void Door_info_ct(Door_info_c* door_info) {
@@ -546,6 +558,13 @@ extern int goto_other_scene(GAME_PLAY* play, Door_data_c* door_data, int update_
     PLAYER_ACTOR* player = get_player_actor_withoutCheck(play);
     int res = 0; // failed
 
+#ifdef TARGET_PC
+    printf("[GOTO_SCENE] goto_other_scene enter: player=%p fb_wipe_mode=%d next_scene_id=%d wipe_type=%d\n",
+           (void*)player, play->fb_wipe_mode,
+           door_data ? (int)door_data->next_scene_id : -1,
+           door_data ? (int)door_data->wipe_type : -1);
+#endif
+
     if (player != NULL) {
         if (play->fb_wipe_mode == WIPE_MODE_NONE) {
             play->fb_fade_type = FADE_TYPE_OUT;
@@ -571,16 +590,32 @@ extern int goto_other_scene(GAME_PLAY* play, Door_data_c* door_data, int update_
             restore_fgdata_all(play);
             play->game.pad_initialized = FALSE;
             res = 1; // success
+#ifdef TARGET_PC
+            printf("[GOTO_SCENE] SUCCESS: fb_fade_type=%d fb_wipe_type=%d next_scene_no=%d\n",
+                   play->fb_fade_type, play->fb_wipe_type, play->next_scene_no);
+#endif
         } else {
             res = 2; // already changing scenes
+#ifdef TARGET_PC
+            printf("[GOTO_SCENE] BLOCKED: already changing scenes (fb_wipe_mode=%d)\n", play->fb_wipe_mode);
+#endif
         }
     }
+#ifdef TARGET_PC
+    else {
+        printf("[GOTO_SCENE] FAILED: player is NULL\n");
+    }
+#endif
 
     return res;
 }
 
 extern int goto_next_scene(GAME_PLAY* play, int next_idx, int update_player_mode) {
     int res = FALSE;
+
+#ifdef TARGET_PC
+    printf("[GOTO_SCENE] goto_next_scene: num_doors=%d next_idx=%d\n", play->door_info.num_doors, next_idx);
+#endif
 
     if (play->door_info.num_doors != 0) {
         res = goto_other_scene(play, play->door_info.door_data_p + next_idx, update_player_mode);

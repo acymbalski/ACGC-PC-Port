@@ -216,14 +216,41 @@ static void Game_play_fbdemo_wipe_move(GAME_PLAY* play) {
     int isDone = TRUE;
 
     if (wipe->wipe_procs.isfinished_proc(&wipe->wipe_data) != 0) {
+#ifdef TARGET_PC
+        static int _wipe_finished_log = 0;
+        if ((_wipe_finished_log++ % 120) == 0) {
+            printf("[WIPE_MOVE] wipe finished, fb_fade_type=%d isDone=%d\n",
+                   (int)play->fb_fade_type, isDone);
+        }
+#endif
         if ((play->fb_fade_type != FADE_TYPE_IN) && (play->fb_fade_type != FADE_TYPE_EVENT)) {
             if (S_se_endcheck_timeout != 0) {
                 S_se_endcheck_timeout--;
             }
 
-            if ((sAdo_SeFadeoutCheck() == 0) && (S_se_endcheck_timeout != 0)) {
+            int se_fadeout_check = sAdo_SeFadeoutCheck();
+#ifdef TARGET_PC
+            static int _wipe_audio_log = 0;
+            if ((_wipe_audio_log++ % 60) == 0) {
+                printf("[WIPE_MOVE] audio check: sAdo_SeFadeoutCheck=%d timeout=%d fade_type=%d\n",
+                       se_fadeout_check, (int)S_se_endcheck_timeout, (int)play->fb_fade_type);
+            }
+#endif
+
+            if ((se_fadeout_check == 0) && (S_se_endcheck_timeout != 0)) {
                 isDone = FALSE;
+#ifdef TARGET_PC
+                static int _wipe_stall_log = 0;
+                if ((_wipe_stall_log++ % 60) == 0) {
+                    printf("[WIPE_MOVE] stalling: audio not done (timeout=%d remaining)\n",
+                           (int)S_se_endcheck_timeout);
+                }
+#endif
             } else {
+#ifdef TARGET_PC
+                printf("[WIPE_MOVE] audio DONE: refusing ongen_fg (se_fadeout=%d timeout=%d)\n",
+                       se_fadeout_check, (int)S_se_endcheck_timeout);
+#endif
                 sAdo_Set_ongenpos_refuse_fg(1);
             }
         }
@@ -297,6 +324,9 @@ static void Game_play_fbdemo_wipe_move(GAME_PLAY* play) {
 
                 case FADE_TYPE_EVENT:
                 case FADE_TYPE_OTHER_ROOM:
+#ifdef TARGET_PC
+                    printf("[WIPE_MOVE] FADE_TYPE_OTHER_ROOM/EVENT isDone=%d — calling Game_play_change_scene_move_end\n", isDone);
+#endif
                     Game_play_change_scene_move_end(play);
                     break;
 
@@ -357,7 +387,9 @@ static void Game_play_fbdemo_proc(GAME_PLAY* play) {
 extern void play_cleanup(GAME* game) {
     GAME_PLAY* play = (GAME_PLAY*)game;
 
+    printf("[CLEANUP] play_cleanup enter scene=%d\n", (int)Save_Get(scene_no));
     mMsg_dt(game);
+    printf("[CLEANUP] mMsg_dt OK\n");
     banti_dt();
 
     game->graph->taskEndCallback = NULL;
@@ -365,7 +397,9 @@ extern void play_cleanup(GAME* game) {
     play->submenu.mode = mSM_MODE_IDLE;
 
     PreRender_cleanup(&play->prerender);
+    printf("[CLEANUP] PreRender_cleanup OK\n");
     CollisionCheck_dt(game, &play->collision_check);
+    printf("[CLEANUP] CollisionCheck_dt OK\n");
 
     if (play->fb_mode == FBDEMO_MODE_MOVE) {
         fbdemo_cleanup(&fbdemo);
@@ -375,8 +409,9 @@ extern void play_cleanup(GAME* game) {
     if (play->fb_wipe_mode == WIPE_MODE_MOVE) {
         Game_play_fbdemo_wipe_destroy(play);
     }
-
+    printf("[CLEANUP] Calling Actor_info_dt...\n");
     Actor_info_dt(&play->actor_info, play);
+    printf("[CLEANUP] Actor_info_dt OK\n");
     mEv_finish(&play->event);
     mNpc_ClearEventNpc();
     mNpc_ClearMaskNpc();
@@ -386,17 +421,23 @@ extern void play_cleanup(GAME* game) {
     mSM_submenu_ovlptr_cleanup(&play->submenu);
 
     mPlib_Object_Exchange_keep_Player_dt(play);
+    printf("[CLEANUP] Object_Exchange_keep_Player_dt OK\n");
 
     mHsRm_GetHuusuiRoom(NULL, Common_Get(player_no));
+    printf("[CLEANUP] mFM_Field_dt...\n");
     mFM_Field_dt();
+    printf("[CLEANUP] mCD_toNextLand...\n");
     mCD_toNextLand();
+    printf("[CLEANUP] mEA_CleanCardDLProgram...\n");
     mEA_CleanCardDLProgram();
+    printf("[CLEANUP] zelda_CleanupArena...\n");
 
     if (my_malloc_current == &my_malloc_func) {
         my_malloc_current = NULL;
     }
 
     zelda_CleanupArena();
+    printf("[CLEANUP] play_cleanup done\n");
 }
 
 static void VR_Box_ct(GAME_PLAY* play) {
@@ -640,6 +681,12 @@ static void Game_play_move_fbdemo_not_move(GAME* game) {
         game->doing_point = 1;
         mCoBG_CalcTimerDecalCircle();
         game->doing_point = 2;
+#ifdef TARGET_PC
+        static int _msg_main_log = 0;
+        if ((_msg_main_log++ % 120) == 0) {
+            printf("[PLAY_DT] Calling mMsg_Main...\n");
+        }
+#endif
         mMsg_Main(game);
     } else {
         mVibctl_set_force_stop(2);
@@ -1039,7 +1086,11 @@ static void Gameplay_Scene_Init(GAME_PLAY* play) {
 
     printf("[SCENE_INIT] Calling Scene_ct(play, %p)...\n", (void*)play->current_scene_data);
     Scene_ct(play, play->current_scene_data);
-    printf("[SCENE_INIT] Scene_ct OK\n");
+    printf("[SCENE_INIT] Scene_ct OK num_doors=%d door_data_p=%p\n",
+           play->door_info.num_doors, (void*)play->door_info.door_data_p);
+    if (play->door_info.num_doors == 0 && Save_Get(scene_no) == SCENE_FG) {
+        printf("[SCENE_INIT] WARNING: FG outdoor scene has 0 doors registered!\n");
+    }
 
     printf("[SCENE_INIT] Calling mSc_decide_exchange_bank...\n");
     mSc_decide_exchange_bank(&play->object_exchange);

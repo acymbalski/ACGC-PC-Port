@@ -33,6 +33,12 @@ static void aSTR_actor_ct(ACTOR* actor, GAME* game) {
     aSTR_init_clip_area();
     structure->str_door_name = Common_Get(door_data).door_actor_name;
     structure->reset = Common_Get(door_data).exit_type;
+#ifdef TARGET_PC
+    printf("[STRUCTURE_CTRL] init: door_name=0x%04X next_scene_id=%d exit_type=%d\n",
+           (unsigned)Common_Get(door_data).door_actor_name,
+           (int)Common_Get(door_data).next_scene_id,
+           (int)Common_Get(door_data).exit_type);
+#endif
 }
 
 static void aSTR_actor_dt(ACTOR* actor, GAME* game) {
@@ -49,10 +55,28 @@ static void aSTR_check_door_data(STRUCTURE_CONTROL_ACTOR* actor, GAME* game) {
             (STRUCTURE_ACTOR*)Actor_info_fgName_search(&play->actor_info, actor->str_door_name, ACTOR_PART_ITEM);
 
         if (str_actor != NULL && str_actor->request_type == 0) {
+#ifdef TARGET_PC
+            printf("[STR_DOOR_CHECK] Found STRUCT 0x%04X, setting request_type=%d\n",
+                   (unsigned)actor->str_door_name, request[actor->reset == TRUE]);
+#endif
             str_actor->request_type = request[actor->reset == TRUE];
             actor->str_door_name = EMPTY_NO;
         }
+#ifdef TARGET_PC
+        else if (str_actor != NULL) {
+            printf("[STR_DOOR_CHECK] Found STRUCT 0x%04X but already has request_type=%d (skipping)\n",
+                   (unsigned)actor->str_door_name, str_actor->request_type);
+        } else {
+            printf("[STR_DOOR_CHECK] STRUCT 0x%04X not found in actor_info!\n",
+                   (unsigned)actor->str_door_name);
+        }
+#endif
     } else {
+#ifdef TARGET_PC
+        printf("[STR_DOOR_CHECK] str_door_name=0x%04X not a STRUCT (type=%d)\n",
+               (unsigned)actor->str_door_name,
+               actor->str_door_name == EMPTY_NO ? -1 : (int)ITEM_NAME_GET_TYPE(actor->str_door_name));
+#endif
         actor->str_door_name = EMPTY_NO;
     }
 }

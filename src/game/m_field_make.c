@@ -162,6 +162,10 @@ static void mFM_SetFgUtPtoSaveData(mFM_block_info_c* block_info, u8 bx_max, u8 b
     int bz;
     int bx;
 
+#ifdef TARGET_PC
+    printf("[LOAD_FG] mFM_SetFgUtPtoSaveData: bx_max=%d bz_max=%d\n", bx_max, bz_max);
+#endif
+
     for (bz = 0; bz < bz_max; bz++) {
         for (bx = 0; bx < bx_max; bx++) {
             if (bz > 0 && bz < (bz_max - 1) && bx > 0 && bx < (bx_max - 1)) {
@@ -173,6 +177,28 @@ static void mFM_SetFgUtPtoSaveData(mFM_block_info_c* block_info, u8 bx_max, u8 b
                     block_info->fg_info.items_p = l_fg_outer_fill;
                 } else {
                     block_info->fg_info.items_p = Save_Get(fg[bz - 1][bx - 1]).items[0];
+                    /* Log non-empty items in the central block slots (excludes outer fill).
+                     * NAME_TYPE_STRUCT (houses) and NAME_TYPE_NPC (npc houses) are most relevant. */
+#ifdef TARGET_PC
+                    {
+                        mActor_name_t* ip = block_info->fg_info.items_p;
+                        int ui;
+                        for (ui = 0; ui < UT_TOTAL_NUM; ui++) {
+                            if (ip[ui] != EMPTY_NO) {
+                                int ntype = ITEM_NAME_GET_TYPE(ip[ui]);
+                                if (ntype == NAME_TYPE_STRUCT || ntype == NAME_TYPE_NPC) {
+                                    printf("[FG_ITEMS] bz=%d bx=%d ut=%d id=0x%04X type=%d",
+                                           bz, bx, ui, (unsigned)ip[ui], ntype);
+                                    /* Check for player houses (0x5800-0x5803) */
+                                    if (ip[ui] >= 0x5800 && ip[ui] <= 0x5803) {
+                                        printf(" [PLAYER_HOUSE]");
+                                    }
+                                    printf("\n");
+                                }
+                            }
+                        }
+                    }
+#endif
                 }
             } else {
                 block_info->fg_info.items_p = l_fg_outer_fill;

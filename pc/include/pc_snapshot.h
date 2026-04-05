@@ -31,6 +31,13 @@ int pc_snapshot_try_restore(void);
 /* Returns 1 after a successful pc_snapshot_try_restore() call. */
 int pc_snapshot_was_restored(void);
 
+/* Optional pre-save hook: called just before the snapshot is written to disk.
+ * Set this (e.g. from graph.c) to update common_data fields from live actor
+ * state — in particular, common_data.door_data.exit_position should be set
+ * to the player's actual world position so restore spawns them correctly.
+ * NULL (default) means no hook. */
+extern void (*g_pc_snapshot_pre_save_hook)(void);
+
 #ifdef __cplusplus
 }
 #endif
