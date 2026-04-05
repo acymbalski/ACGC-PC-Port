@@ -249,15 +249,47 @@ void OSInit(void) {
          * naturally (well above 0x0FFFFFFF), so no fixed-address loop needed.
          * On 32-bit, alloc at >=0x10000000 to avoid collision with N64 segment addresses. */
 #if UINTPTR_MAX > 0xFFFFFFFFu
-        /* 64-bit: let OS choose address (will be above N64 segment range) */
+        /* 64-bit: if a snapshot exists, try to allocate at the exact same address
+         * it was saved from — all arena pointers depend on this matching. */
+        {
+            uintptr_t snap_addr = pc_snapshot_peek_arena_addr();
 #ifdef _WIN32
-        arena_memory = (u8*)VirtualAlloc(NULL,
-            PC_MAIN_MEMORY_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+            if (snap_addr) {
+                arena_memory = (u8*)VirtualAlloc((void*)snap_addr,
+                    PC_MAIN_MEMORY_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+                if (arena_memory)
+                    printf("[PC] Arena allocated at snapshot address 0x%llX\n",
+                           (unsigned long long)snap_addr);
+                else
+                    printf("[PC] WARNING: Could not allocate arena at snapshot address 0x%llX — will fall through to default\n",
+                           (unsigned long long)snap_addr);
+            }
+            if (!arena_memory)
+                arena_memory = (u8*)VirtualAlloc(NULL,
+                    PC_MAIN_MEMORY_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #else
-        arena_memory = (u8*)mmap(NULL, PC_MAIN_MEMORY_SIZE,
-            PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-        if (arena_memory == MAP_FAILED) arena_memory = NULL;
+            #ifndef MAP_FIXED_NOREPLACE
+            #define MAP_FIXED_NOREPLACE 0x100000
+            #endif
+            if (snap_addr) {
+                arena_memory = (u8*)mmap((void*)snap_addr, PC_MAIN_MEMORY_SIZE,
+                    PROT_READ | PROT_WRITE,
+                    MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
+                if (arena_memory == MAP_FAILED) arena_memory = NULL;
+                if (arena_memory)
+                    printf("[PC] Arena allocated at snapshot address 0x%llX\n",
+                           (unsigned long long)snap_addr);
+                else
+                    printf("[PC] Could not allocate arena at snapshot address 0x%llX — will relocate pointers on restore\n",
+                           (unsigned long long)snap_addr);
+            }
+            if (!arena_memory) {
+                arena_memory = (u8*)mmap(NULL, PC_MAIN_MEMORY_SIZE,
+                    PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+                if (arena_memory == MAP_FAILED) arena_memory = NULL;
+            }
 #endif
+        }
 #else
         /* 32-bit: try fixed addresses above N64 segment range */
         {

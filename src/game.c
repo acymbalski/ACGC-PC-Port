@@ -209,6 +209,8 @@ extern void game_resize_hyral(GAME* this, int size) {
     THA_dt(&this->tha);
     gamealloc_free(&this->gamealloc, old_hyral);
     GetFreeArena(&max_size, &free_size, &alloc_size);
+    printf("[HYRAL] game_resize_hyral: max_size=%zu free=%zu alloc=%zu req=%d\n",
+           max_size, free_size, alloc_size, size);
     max_size -= 0x50;
 
     if (size <= 0) {
@@ -222,7 +224,9 @@ extern void game_resize_hyral(GAME* this, int size) {
         }
     }
 
+    printf("[HYRAL] allocating THA buffer: size=%d\n", size);
     hyral = (u8*)gamealloc_malloc(&this->gamealloc, (u32)size);
+    printf("[HYRAL] THA buffer: hyral=%p size=%d\n", (void*)hyral, size);
     if (hyral != NULL) {
         THA_ct(&this->tha, (char*)hyral, (u32)size);
     } else {

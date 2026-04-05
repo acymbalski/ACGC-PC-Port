@@ -25,14 +25,27 @@ static void mSc_clear_bank_status(Object_Bank_c* bank) {
 }
 
 static void Object_Exchange_keep_new_Player(GAME_PLAY* play) {
+    printf("[OEXCHANGE] next_bank_ram_address=%p max_ram_address=%p bank_idx=%d\n",
+           (void*)play->object_exchange.next_bank_ram_address,
+           (void*)play->object_exchange.max_ram_address,
+           play->object_exchange.bank_idx);
+    printf("[OEXCHANGE] calling PlayerMdl\n");
     mPlib_Object_Exchange_keep_new_PlayerMdl(play);
+    printf("[OEXCHANGE] PlayerMdl OK, calling PlayerTex 0\n");
     mPlib_Object_Exchange_keep_new_PlayerTex(play, 0, 0);
+    printf("[OEXCHANGE] PlayerTex 0 OK, calling PlayerPallet 0\n");
     mPlib_Object_Exchange_keep_new_PlayerPallet(play, 0, 0);
+    printf("[OEXCHANGE] PlayerPallet 0 OK, calling PlayerTex 1\n");
     mPlib_Object_Exchange_keep_new_PlayerTex(play, 1, 2);
+    printf("[OEXCHANGE] PlayerTex 1 OK, calling PlayerPallet 1\n");
     mPlib_Object_Exchange_keep_new_PlayerPallet(play, 1, 2);
+    printf("[OEXCHANGE] PlayerPallet 1 OK, calling PlayerFaceTex\n");
     mPlib_Object_Exchange_keep_new_PlayerFaceTex(play);
+    printf("[OEXCHANGE] PlayerFaceTex OK, calling PlayerFacePallet 1\n");
     mPlib_Object_Exchange_keep_new_PlayerFacePallet(play, 1, 0);
+    printf("[OEXCHANGE] PlayerFacePallet 1 OK, calling PlayerFacePallet 2\n");
     mPlib_Object_Exchange_keep_new_PlayerFacePallet(play, 2, 1);
+    printf("[OEXCHANGE] all done\n");
 }
 
 extern char* mSc_secure_exchange_keep_bank(Object_Exchange_c* exchange, s16 bank_id, size_t size) {
@@ -222,7 +235,11 @@ extern void mSc_data_bank_ct(GAME_PLAY* play, Object_Exchange_c* exchange) {
     exchange->keep_id = -1;
     exchange->exchange_id = -1;
 
+    printf("[mSc_ct] tha buf=%p size=%zu head=%p tail=%p\n",
+           (void*)play->game.tha.buf_p, (size_t)play->game.tha.size,
+           (void*)play->game.tha.head_p, (void*)play->game.tha.tail_p);
     exchange_arena = (char*)THA_allocAlign(&play->game.tha, mSc_ARENA_SIZE, ~0x1F);
+    printf("[mSc_ct] exchange_arena=%p\n", (void*)exchange_arena);
     exchange->next_bank_ram_address = exchange_arena;
     exchange->start_address_save[0] = exchange_arena;
     exchange->start_address_save[1] = exchange_arena;
@@ -337,13 +354,21 @@ extern void Scene_ct(GAME_PLAY* play, Scene_Word_u* scene_data) {
     /* Initialize all scene data */
     while (TRUE) {
         u32 type = scene_data->misc.type;
+        printf("[SCENE_CT] scene_data=%p type=%u\n", (void*)scene_data, type);
 
         if (type == mSc_SCENE_DATA_TYPE_END) {
+            printf("[SCENE_CT] END marker reached\n");
             break;
         }
 
         if (type < mSc_SCENE_DATA_TYPE_NUM) {
-            (*Scene_Proc[type])(play, scene_data);
+            if (Scene_Proc[type]) {
+                printf("[SCENE_CT] calling Scene_Proc[%u]=%p\n", type, (void*)Scene_Proc[type]);
+                (*Scene_Proc[type])(play, scene_data);
+                printf("[SCENE_CT] Scene_Proc[%u] OK\n", type);
+            }
+        } else {
+            printf("[SCENE_CT] type %u out of range, skipping\n", type);
         }
 
         scene_data++;
@@ -399,19 +424,27 @@ static void Scene_Proc_Player_Ptr(GAME_PLAY* play, Scene_Word_u* scene_data) {
         DEG2SHORT_ANGLE(-45.0f)   /* 0xE000 */
     };
 
+    printf("[PLAYER_PTR] scene_data=%p actor.data_p=%p\n",
+           (void*)scene_data, (void*)scene_data->actor.data_p);
     Actor_data* data = scene_data->actor.data_p;
+    printf("[PLAYER_PTR] data=%p\n", (void*)data);
 
     play->player_data = data;
 
+    printf("[PLAYER_PTR] door_data.next_scene_id=%d\n", (int)Common_Get(door_data).next_scene_id);
     /* Update player position & orientation based on the current door exit data */
     if (Common_Get(door_data).next_scene_id != 0) {
         mem_copy((u8*)&data->position, (u8*)&Common_Get(door_data).exit_position, sizeof(s_xyz));
         data->rotation.y = angle_table[Common_Get(door_data).exit_orientation];
     }
 
+    printf("[PLAYER_PTR] writing data->arg\n");
     data->arg = Common_Get(door_data).extra_data;
+    printf("[PLAYER_PTR] calling Object_Exchange_keep_new_Player\n");
     Object_Exchange_keep_new_Player(play);
+    printf("[PLAYER_PTR] calling mSM_Object_Exchange_keep_new_Menu\n");
     mSM_Object_Exchange_keep_new_Menu(play);
+    printf("[PLAYER_PTR] done\n");
 }
 
 static void Scene_Proc_Ctrl_Actor_Ptr(GAME_PLAY* play, Scene_Word_u* scene_data) {

@@ -19,6 +19,11 @@ void pc_snapshot_request_restart(void);
  * If a suspend was requested, saves the arena to disk here. */
 void pc_snapshot_check_frame_boundary(void);
 
+/* Called from OSInit() BEFORE the arena is allocated.
+ * Returns the saved arena base address if a valid snapshot header exists, 0 otherwise.
+ * Used to attempt allocation at the same address so arena pointers remain valid. */
+uintptr_t pc_snapshot_peek_arena_addr(void);
+
 /* Called from OSInit() after the arena is zeroed and pointers are set.
  * Returns 1 if a snapshot was found and loaded into the arena, 0 otherwise. */
 int pc_snapshot_try_restore(void);

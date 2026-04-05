@@ -10,6 +10,7 @@
 #include "ac_uki.h"
 #ifdef TARGET_PC
 #include "pc_bswap.h"
+#include "pc_platform.h"
 #endif
 
 extern cKF_Animation_R_c cKF_ba_r_ply_1_wait1;
@@ -1015,26 +1016,37 @@ static u32 mPlib_Get_UseFacePalletRom_p(void) {
 
 extern void mPlib_Object_Exchange_keep_new_PlayerMdl(GAME_PLAY* play) {
     Actor_data* player_data = play->player_data;
-
-    actor_dlftbls[player_data->profile].profile->obj_bank_id = mPlib_get_player_Object_Bank();
+    printf("[PMDL] player_data=%p profile=%d\n", (void*)player_data, (int)player_data->profile);
+    printf("[PMDL] actor_dlftbls[%d].profile=%p\n",
+           (int)player_data->profile,
+           (void*)actor_dlftbls[player_data->profile].profile);
+    s16 bank = mPlib_get_player_Object_Bank();
+    printf("[PMDL] obj_bank_id=%d\n", (int)bank);
+    actor_dlftbls[player_data->profile].profile->obj_bank_id = bank;
+    printf("[PMDL] done\n");
 }
 
 static int mPlib_Object_Exchange_keep_new(GAME_PLAY* play, s16 bank, u32 src, u32 size, int aram_flag) {
     Object_Exchange_c* obj_ex = &play->object_exchange;
     Object_Bank_c* bank_p = &obj_ex->banks[obj_ex->bank_idx];
 
+    printf("[PNEW] bank=%d src=0x%08X size=%u aram=%d next_addr=%p\n",
+           (int)bank, (unsigned)src, (unsigned)size, aram_flag,
+           (void*)obj_ex->next_bank_ram_address);
     bank_p->bank_id = bank;
     bank_p->dma_start = obj_ex->next_bank_ram_address;
     bank_p->ram_start = obj_ex->next_bank_ram_address;
     bank_p->size = size;
 
     if (src != 0) {
+        printf("[PNEW] DMA: src=0x%08X dst=%p size=%u aram=%d\n",
+               (unsigned)src, (void*)bank_p->dma_start, (unsigned)size, aram_flag);
         if (aram_flag) {
             _JW_GetResourceAram(src, (u8*)bank_p->dma_start, size);
         } else {
             bcopy((void*)src, bank_p->dma_start, size);
         }
-
+        printf("[PNEW] DMA done\n");
         DCStoreRangeNoSync(bank_p->ram_start, size);
     }
 
@@ -1325,6 +1337,10 @@ extern cKF_Skeleton_R_c* mPlib_get_player_mdl_p(void) {
 }
 
 extern s16 mPlib_get_player_Object_Bank(void) {
+    if (Now_Private == NULL) {
+        fprintf(stderr, "[PMDL] WARN: Now_Private is NULL in mPlib_get_player_Object_Bank\n");
+        return ACTOR_OBJ_BANK_8;
+    }
     if (Now_Private->gender == mPr_SEX_MALE) {
         return ACTOR_OBJ_BANK_8;
     } else {

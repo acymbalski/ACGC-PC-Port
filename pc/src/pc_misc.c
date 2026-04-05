@@ -198,6 +198,7 @@ static void* malloc_arena_base = NULL;
 static unsigned long malloc_arena_size = 0;
 
 void MallocInit(void* base, unsigned long size) {
+    printf("[MALLOC] MallocInit(base=%p, size=%lu)\n", base, size);
     malloc_initialized = 1;
     malloc_arena_base = base;
     malloc_arena_size = size;
@@ -215,6 +216,8 @@ void GetFreeArena(unsigned long* max, unsigned long* free_size, unsigned long* a
     if (max) *max = malloc_arena_size;
     if (free_size) *free_size = malloc_arena_size;
     if (alloc) *alloc = 0;
+    printf("[MALLOC] GetFreeArena → max=%lu free=%lu\n",
+           max ? *max : 0UL, free_size ? *free_size : 0UL);
 }
 
 void DisplayArena(void) { }

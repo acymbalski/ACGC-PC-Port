@@ -404,6 +404,11 @@ static void VR_Box_ct(GAME_PLAY* play) {
 }
 
 extern void play_init(GAME* game) {
+    printf("[PLAY_INIT] ============================================\n");
+    printf("[PLAY_INIT] play_init() called!\n");
+    printf("[PLAY_INIT] game=%p\n", (void*)game);
+    printf("[PLAY_INIT] game->graph=%p\n", (void*)(game ? game->graph : NULL));
+
     GAME_PLAY* play = (GAME_PLAY*)game;
     GRAPH* graph = game->graph;
     int type;
@@ -413,32 +418,83 @@ extern void play_init(GAME* game) {
     uintptr_t aligned;
     uintptr_t size;
 
+    printf("[PLAY_INIT] Calling game_resize_hyral(game, %d)\n", -Game_play_HYRAL_SIZE);
     game_resize_hyral(game, -Game_play_HYRAL_SIZE); // reserve bytes from gamealloc
+    printf("[PLAY_INIT] game_resize_hyral() returned\n");
+
+    printf("[PLAY_INIT] Calling Common_Set(rhythym_updated, 0)...\n");
     Common_Set(rhythym_updated, 0);
+    printf("[PLAY_INIT] Common_Set(rhythym_updated) OK\n");
 
+    printf("[PLAY_INIT] Calling mFI_ChangeClimate_ForEventNotice()...\n");
     mFI_ChangeClimate_ForEventNotice();
+    printf("[PLAY_INIT] mFI_ChangeClimate_ForEventNotice() OK\n");
+
+    printf("[PLAY_INIT] Calling mTM_time_init()...\n");
     mTM_time_init();
+    printf("[PLAY_INIT] mTM_time_init() OK\n");
+
+    printf("[PLAY_INIT] Calling sAdo_Set_ongenpos_refuse_fg(0)...\n");
     sAdo_Set_ongenpos_refuse_fg(0);
+    printf("[PLAY_INIT] sAdo_Set_ongenpos_refuse_fg() OK\n");
+
+    printf("[PLAY_INIT] Calling event_title_flag_on()...\n");
     event_title_flag_on();
+    printf("[PLAY_INIT] event_title_flag_on() OK\n");
+
+    printf("[PLAY_INIT] Calling mTD_rtc_set()...\n");
     mTD_rtc_set();
+    printf("[PLAY_INIT] mTD_rtc_set() OK\n");
+
+    printf("[PLAY_INIT] Calling mTM_set_season()...\n");
     mTM_set_season();
+    printf("[PLAY_INIT] mTM_set_season() OK\n");
+
+    printf("[PLAY_INIT] Calling mPlib_Clear_controller_data_for_title_demo()...\n");
     mPlib_Clear_controller_data_for_title_demo();
+    printf("[PLAY_INIT] mPlib_Clear_controller_data_for_title_demo() OK\n");
 
+    printf("[PLAY_INIT] Calling mSM_submenu_ovlptr_init(play)...\n");
     mSM_submenu_ovlptr_init(play);
+    printf("[PLAY_INIT] mSM_submenu_ovlptr_init() OK\n");
+
+    printf("[PLAY_INIT] Calling mDemo_Init(play)...\n");
     mDemo_Init(play);
+    printf("[PLAY_INIT] mDemo_Init() OK\n");
+
+    printf("[PLAY_INIT] Calling mEv_init(&play->event)...\n");
     mEv_init(&play->event);
+    printf("[PLAY_INIT] mEv_init() OK\n");
 
+    printf("[PLAY_INIT] Calling initView(&play->view, graph)...\n");
     initView(&play->view, graph);
-    Init_Camera2(play);
-    CollisionCheck_ct(game, &play->collision_check);
+    printf("[PLAY_INIT] initView() OK\n");
 
+    printf("[PLAY_INIT] Calling Init_Camera2(play)...\n");
+    Init_Camera2(play);
+    printf("[PLAY_INIT] Init_Camera2() OK\n");
+
+    printf("[PLAY_INIT] Calling CollisionCheck_ct()...\n");
+    CollisionCheck_ct(game, &play->collision_check);
+    printf("[PLAY_INIT] CollisionCheck_ct() OK\n");
+
+    printf("[PLAY_INIT] Calling mCoBG_InitMoveBgData()...\n");
     mCoBG_InitMoveBgData();
+    printf("[PLAY_INIT] mCoBG_InitMoveBgData() OK\n");
+
+    printf("[PLAY_INIT] Calling mCoBG_InitBlockBgCheckMode()...\n");
     mCoBG_InitBlockBgCheckMode();
+    printf("[PLAY_INIT] mCoBG_InitBlockBgCheckMode() OK\n");
+
+    printf("[PLAY_INIT] Calling mCoBG_InitDecalCircle()...\n");
     mCoBG_InitDecalCircle();
+    printf("[PLAY_INIT] mCoBG_InitDecalCircle() OK\n");
 
     play->submenu_ground_idx = -1;
 
+    printf("[PLAY_INIT] Calling Gameplay_Scene_Read(play, scene_no=%d)...\n", Save_Get(scene_no));
     Gameplay_Scene_Read(play, Save_Get(scene_no));
+    printf("[PLAY_INIT] Gameplay_Scene_Read() OK\n");
 
     mSM_submenu_ct(&play->submenu);
     play->submenu.mode = mSM_MODE_IDLE;
@@ -485,20 +541,64 @@ extern void play_init(GAME* game) {
         my_malloc_current = &my_malloc_func;
     }
 
+    printf("[PLAY_INIT] Calling mFM_FieldInit(play)...\n");
     mFM_FieldInit(play);
+    printf("[PLAY_INIT] mFM_FieldInit() OK\n");
+
+    printf("[PLAY_INIT] Calling VR_Box_ct(play)...\n");
     VR_Box_ct(play);
+    printf("[PLAY_INIT] VR_Box_ct() OK\n");
+
+    printf("[PLAY_INIT] Calling mMmd_MakeMuseumDisplayData()...\n");
     mMmd_MakeMuseumDisplayData();
+    printf("[PLAY_INIT] mMmd_MakeMuseumDisplayData() OK\n");
+
+    printf("[PLAY_INIT] Calling Actor_info_ct()...\n");
     Actor_info_ct(game, &play->actor_info, play->player_data);
+    printf("[PLAY_INIT] Actor_info_ct() OK\n");
+
     play->draw_chk_proc = none_proc1;
+    printf("[PLAY_INIT] Set draw_chk_proc\n");
+
+    printf("[PLAY_INIT] Calling mMsg_ct(game)...\n");
     mMsg_ct(game);
+    printf("[PLAY_INIT] mMsg_ct() OK\n");
+
+    printf("[PLAY_INIT] Calling mEv_2nd_init()...\n");
     mEv_2nd_init(&play->event);
+    printf("[PLAY_INIT] mEv_2nd_init() OK\n");
+
+    printf("[PLAY_INIT] Calling mTD_player_keydata_init()...\n");
     mTD_player_keydata_init(play);
+    printf("[PLAY_INIT] mTD_player_keydata_init() OK\n");
+
+    printf("[PLAY_INIT] Calling Balloon_init()...\n");
     Balloon_init(play);
+    printf("[PLAY_INIT] Balloon_init() OK\n");
+
+    printf("[PLAY_INIT] Calling mNtc_set_auto_nwrite_data()...\n");
     mNtc_set_auto_nwrite_data();
+    printf("[PLAY_INIT] mNtc_set_auto_nwrite_data() OK\n");
+
+    printf("[PLAY_INIT] Calling banti_ct()...\n");
     banti_ct();
+    printf("[PLAY_INIT] banti_ct() OK\n");
+
+    printf("[PLAY_INIT] Calling watch_my_step_ct()...\n");
     watch_my_step_ct();
+    printf("[PLAY_INIT] watch_my_step_ct() OK\n");
+
+    printf("[PLAY_INIT] Calling event_title_flag_off()...\n");
     event_title_flag_off();
+    printf("[PLAY_INIT] event_title_flag_off() OK\n");
+
+    printf("[PLAY_INIT] Calling mEA_GetCardDLProgram()...\n");
     mEA_GetCardDLProgram();
+    printf("[PLAY_INIT] mEA_GetCardDLProgram() OK\n");
+
+    printf("[PLAY_INIT] ============================================\n");
+    printf("[PLAY_INIT] play_init() COMPLETE!\n");
+    printf("[PLAY_INIT] ============================================\n");
 }
 
 static void Game_play_move_fbdemo_not_move(GAME* game) {
@@ -913,18 +1013,37 @@ extern void play_main(GAME* game) {
 }
 
 static void Gameplay_Scene_Init(GAME_PLAY* play) {
+    printf("[SCENE_INIT] entry: play=%p current_scene_data=%p\n",
+           (void*)play, (void*)play->current_scene_data);
     play->player_data = NULL;
     play->actor_data_num = 0;
     play->ctrl_actor_data_num = 0;
     play->obj_bank_data_num = 0;
     play->_20A8 = 0;
 
+    printf("[SCENE_INIT] Calling mSc_data_bank_ct...\n");
     mSc_data_bank_ct(play, &play->object_exchange);
+    printf("[SCENE_INIT] mSc_data_bank_ct OK\n");
+
+    printf("[SCENE_INIT] Calling Global_light_ct...\n");
     Global_light_ct(&play->global_light);
+    printf("[SCENE_INIT] Global_light_ct OK\n");
+
+    printf("[SCENE_INIT] Calling Door_info_ct...\n");
     Door_info_ct(&play->door_info);
+    printf("[SCENE_INIT] Door_info_ct OK\n");
+
+    printf("[SCENE_INIT] Calling common_data_clear...\n");
     common_data_clear();
+    printf("[SCENE_INIT] common_data_clear OK\n");
+
+    printf("[SCENE_INIT] Calling Scene_ct(play, %p)...\n", (void*)play->current_scene_data);
     Scene_ct(play, play->current_scene_data);
+    printf("[SCENE_INIT] Scene_ct OK\n");
+
+    printf("[SCENE_INIT] Calling mSc_decide_exchange_bank...\n");
     mSc_decide_exchange_bank(&play->object_exchange);
+    printf("[SCENE_INIT] mSc_decide_exchange_bank OK\n");
 }
 
 static u8 mPl_SceneNo2SoundRoomType(int scene) {
@@ -1014,13 +1133,26 @@ static void Gameplay_Scene_Read(GAME_PLAY* play, s16 idx) {
         tent_info,
     };
 
+    printf("[SCENE_READ] idx=%d SCENE_NUM=%d\n", (int)idx, (int)SCENE_NUM);
+    if (idx < 0 || idx >= SCENE_NUM) {
+        fprintf(stderr, "[SCENE_READ] idx OUT OF RANGE — abort\n");
+        return;
+    }
+
+    printf("[SCENE_READ] scene_word_data[%d]=%p\n", (int)idx, (void*)scene_word_data[idx]);
+
     Scene_data_status_c* current = &scene_data_status[idx];
+    printf("[SCENE_READ] scene_data_status[%d]=%p\n", (int)idx, (void*)current);
 
     current->unk13 = 0;
     play->scene_data_status = current;
     play->scene_id = idx;
     play->current_scene_data = scene_word_data[idx];
     current->unk13 = 0;
+    printf("[SCENE_READ] Calling Gameplay_Scene_Init(play)...\n");
     Gameplay_Scene_Init(play);
+    printf("[SCENE_READ] Gameplay_Scene_Init() OK\n");
+    printf("[SCENE_READ] Calling sAdo_RoomType...\n");
     sAdo_RoomType(mPl_SceneNo2SoundRoomType(Save_Get(scene_no)));
+    printf("[SCENE_READ] Done\n");
 }

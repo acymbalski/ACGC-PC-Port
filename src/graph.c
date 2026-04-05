@@ -12,8 +12,10 @@
 #include "libu64/debug.h"
 #include "libultra/libultra.h"
 #include "m_bgm.h"
+#include "m_common_data.h"
 #include "m_debug.h"
 #include "m_game_dlftbls.h"
+#include "sys_math.h"
 #include "m_play.h"
 #include "m_prenmi.h"
 #include "m_select.h"
@@ -371,35 +373,78 @@ static void graph_main(GRAPH* this, GAME* game) {
 extern void graph_proc(void* arg) {
     GRAPH* __graph = &graph_class;
     DLFTBL_GAME* dlftbl = &game_dlftbls[0];
+    printf("[GRAPH] graph_proc entry\n");
 #ifdef TARGET_PC
+    printf("[GRAPH] Checking PC-specific boot logic\n");
+    printf("[GRAPH] g_pc_model_viewer=%d\n", g_pc_model_viewer);
+    printf("[GRAPH] pc_snapshot_was_restored()=%d\n", pc_snapshot_was_restored());
+
     if (g_pc_model_viewer) {
+        printf("[GRAPH] Using model viewer (game_dlftbls[10])\n");
         dlftbl = &game_dlftbls[10]; /* model viewer */
     } else if (pc_snapshot_was_restored()) {
         /* Skip title/select: jump directly to the play state.
          * The arena was already loaded with snapshotted game state by OSInit().
          * play_init() will read world/player data from the restored arena.
-         * NOTE: BSS-resident globals normally set by first_game/second_game/select
-         * (common_data, BGM state, etc.) will be at their zero-initialised defaults.
-         * This is sufficient for most gameplay; edge cases can be fixed as found. */
+         * Initialize BSS-resident globals that first_game/second_game/select would set. */
+        printf("[RESTORE] ============================================\n");
+        printf("[RESTORE] Snapshot was restored! Initializing BSS globals...\n");
+
+        printf("[RESTORE] Calling init_rnd() (random seed init)...\n");
+        init_rnd();
+        printf("[RESTORE] init_rnd() complete\n");
+
+        printf("[RESTORE] Calling __osInitialize_common() (OS common init)...\n");
+        __osInitialize_common();
+        printf("[RESTORE] __osInitialize_common() complete\n");
+
+        /* common_data was already restored from the snapshot in pc_snapshot_try_restore(). */
+        printf("[RESTORE] Calling mBGM_ct()...\n");
+        mBGM_ct();
+        printf("[RESTORE] mBGM_ct() complete\n");
+
+        printf("[RESTORE] Calling mVibctl_ct()...\n");
+        mVibctl_ct();
+        printf("[RESTORE] mVibctl_ct() complete\n");
+
         printf("[RESTORE] Skipping to play state (game_dlftbls[2])\n");
+        printf("[RESTORE] ============================================\n");
         dlftbl = &game_dlftbls[2];
+    } else {
+        printf("[GRAPH] Normal boot — starting from title screen (game_dlftbls[0])\n");
     }
 #endif
+    printf("[GRAPH] Calling graph_ct(&graph_class)...\n");
     graph_ct(&graph_class);
+    printf("[GRAPH] graph_ct() complete\n");
 #ifdef TARGET_PC
     double tick_accumulator = 0.0;
     extern int g_pc_fps_target;
 #endif
 
     while (dlftbl != NULL) {
+        printf("[GRAPH] ============================================\n");
+        printf("[GRAPH] Starting new game state from dlftbl=%p\n", (void*)dlftbl);
+        printf("[GRAPH] dlftbl->alloc_size=%zu\n", dlftbl->alloc_size);
+        printf("[GRAPH] dlftbl->init=%p\n", (void*)dlftbl->init);
+
         size_t size = dlftbl->alloc_size;
         GAME* game = (GAME*)malloc(size);
+        printf("[GRAPH] Allocated GAME structure at %p (%zu bytes)\n", (void*)game, size);
+
         game_class_p = game;
         bzero(game, size);
+        printf("[GRAPH] Zeroed GAME structure\n");
+
         GRAPH_SET_DOING_POINT(__graph, GAME_CT);
+        printf("[GRAPH] Calling game_ct(game, %p, __graph)...\n", (void*)dlftbl->init);
+        printf("[GRAPH] (This may call play_init for restored snapshots)\n");
         game_ct(game, dlftbl->init, __graph);
+        printf("[GRAPH] game_ct() returned successfully\n");
+
         emu64_refresh();
         GRAPH_SET_DOING_POINT(__graph, GAME_CT_FINISHED);
+        printf("[GRAPH] ============================================\n");
 
         while (game_is_doing(game) && g_pc_running) {
 #ifdef TARGET_PC
