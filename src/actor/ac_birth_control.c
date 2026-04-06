@@ -144,7 +144,24 @@ static void aBC_setupActor(BIRTH_CONTROL_ACTOR* birth_control, GAME_PLAY* play) 
           if (Common_Get(clip).structure_clip != NULL) {
             STRUCTURE_ACTOR* actor = (*Common_Get(clip).structure_clip->setup_actor_proc)((GAME*)play, *item_p, -1, base_x + aBC_pos_table[ut_x], base_z + aBC_pos_table[ut_z]);
             setup_actor_flag |= actor == NULL;
+#ifdef TARGET_PC
+            if (actor == NULL) {
+                printf("[BIRTH_CTRL] Failed to spawn STRUCT 0x%04X at (%.0f, %.0f)\n",
+                       (unsigned)*item_p, base_x + aBC_pos_table[ut_x], base_z + aBC_pos_table[ut_z]);
+            } else {
+                printf("[BIRTH_CTRL] Spawned STRUCT 0x%04X at (%.0f, %.0f)\n",
+                       (unsigned)*item_p, base_x + aBC_pos_table[ut_x], base_z + aBC_pos_table[ut_z]);
+            }
+#endif
           }
+#ifdef TARGET_PC
+          else {
+              static int _warn_count = 0;
+              if (_warn_count++ < 10) {
+                  printf("[BIRTH_CTRL] WARNING: structure_clip is NULL, cannot spawn STRUCT 0x%04X\n", (unsigned)*item_p);
+              }
+          }
+#endif
 
           break;
       }
@@ -290,6 +307,14 @@ static void aBC_set_boat(BIRTH_CONTROL_ACTOR* birth_control, GAME_PLAY* play) {
 static void aBC_actor_move(ACTOR* actorx, GAME* game) {
   BIRTH_CONTROL_ACTOR* birth_control = (BIRTH_CONTROL_ACTOR*)actorx;
   GAME_PLAY* play = (GAME_PLAY*)game;
+#ifdef TARGET_PC
+  static int _abc_move_log = 0;
+  if (_abc_move_log++ < 5) {
+      printf("[BIRTH_CTRL] move: pad_init=%d setup_flag=%d born_actor=%d scene=%d\n",
+             play->game.pad_initialized, birth_control->setup_actor_flag,
+             mFI_ActorisBorn(), (int)Save_Get(scene_no));
+  }
+#endif
   if (Common_Get(bg_item_type) == 0) {
     birth_control->setup_actor_flag |= mFI_ActorisBorn() == TRUE;
     aBC_set_boat(birth_control, play);

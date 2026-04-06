@@ -18,7 +18,9 @@
 #include "pc_snapshot.h"
 #include "m_common_data.h"
 #include "m_house.h"
+#include "m_clip.h"
 #include <errno.h>
+#include <string.h>
 
 /* ---- Arena pointers (pc_os.c) ------------------------------------------- */
 extern u8* pc_arena_base;
@@ -119,6 +121,17 @@ static void pc_snapshot_fixup_common_data_ptrs(void) {
                (void*)common_data.pluss_bridge_pos);
         common_data.pluss_bridge_pos = NULL;
     }
+
+    /* All Clip_c pointer fields are THA (zelda_malloc) allocations from the
+     * snapshot session.  The THA lives outside the arena and is rebuilt fresh
+     * each play_init, so every saved pointer is dangling.  Zero the entire
+     * clip struct so each subsystem re-initialises from scratch.
+     * (box_trick_data at offset 0 and arrange_ftr_num will also be zeroed;
+     * they are set by their respective actors on first spawn.) */
+    printf("[RESTORE]   clearing stale clip struct (structure_clip=%p npc_clip=%p)\n",
+           (void*)common_data.clip.structure_clip,
+           (void*)common_data.clip.npc_clip);
+    memset(&common_data.clip, 0, sizeof(Clip_c));
 
     printf("[RESTORE] Common_data fixup complete\n");
 }

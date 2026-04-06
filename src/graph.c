@@ -27,6 +27,7 @@
 #include "sys_dynamic.h"
 #include "sys_ucode.h"
 #include "zurumode.h"
+#include "m_msg.h"
 #ifdef TARGET_PC
 #include "m_card.h"
 #include "pc_model_viewer.h"
@@ -422,6 +423,20 @@ static void pc_snapshot_update_player_doordata(void) {
     common_data.door_data.next_scene_id = (int)Save_Get(scene_no) + 1;
     /* extra_data = 0 → default INTRO spawn animation (standing idle). */
     common_data.door_data.extra_data = 0;
+    /* Clear door actor name so STRUCTURE_CONTROL doesn't loop searching for a door actor
+     * that won't be in the 'request' state after a snapshot restore. */
+    common_data.door_data.door_actor_name = EMPTY_NO;
+    common_data.door_data.exit_type = 0;
+
+    /* Restore structure/item IDs in the FG save grid before writing to disk.
+     * When a structure actor spawns, aSTR_setupActor_proc writes RSV_NO into
+     * common_data.save.save.fg so the slot is marked occupied.  If we snapshot
+     * without reversing this, the restored game sees RSV_NO instead of the real
+     * item IDs and Birth Control never spawns those structures.
+     * restore_fgdata_all() reverses RSV_NO back to the actor's true name for
+     * every currently-live ACTOR_PART_ITEM / ACTOR_PART_FG actor. */
+    restore_fgdata_all(play);
+    printf("[SNAPSHOT] FG data restored (structure IDs written back to save grid)\n");
 
     printf("[SNAPSHOT] Player doordata updated: pos=(%d,%d,%d) ori=%d scene=%d\n",
            (int)px, (int)py, (int)pz, (int)ori, (int)Save_Get(scene_no));
@@ -472,6 +487,11 @@ extern void graph_proc(void* arg) {
         mCD_save_data_aram_malloc();
         printf("[RESTORE] mCD_save_data_aram_malloc() complete\n");
 
+        printf("[RESTORE] Calling mMsg_aram_init() & mMsg_aram_init2()...\n");
+        mMsg_aram_init();
+        mMsg_aram_init2();
+        printf("[RESTORE] mMsg_aram_init complete\n");
+
         /* second_game_init normally sets this after loading the save from disk.
          * The save is already in common_data (restored from snapshot), so mark
          * it loaded so common_data_reinit() and pc_save_reload() behave correctly
@@ -482,8 +502,35 @@ extern void graph_proc(void* arg) {
             printf("[RESTORE] pc_save_loaded set to 1\n");
         }
 
+        printf("[RESTORE] door_data BEFORE: scene=%d pos=(%d,%d,%d) door=0x%04X\n",
+               common_data.door_data.next_scene_id,
+               common_data.door_data.exit_position.x,
+               common_data.door_data.exit_position.y,
+               common_data.door_data.exit_position.z,
+               (unsigned)common_data.door_data.door_actor_name);
+        printf("[RESTORE] exit_door BEFORE: scene=%d pos=(%d,%d,%d) door=0x%04X\n",
+               common_data.structure_exit_door_data.next_scene_id,
+               common_data.structure_exit_door_data.exit_position.x,
+               common_data.structure_exit_door_data.exit_position.y,
+               common_data.structure_exit_door_data.exit_position.z,
+               (unsigned)common_data.structure_exit_door_data.door_actor_name);
+
+        printf("[RESTORE] Setting title demo flag to NONE (clearing stuck logo state)\n");
+        mEv_SetTitleDemo(0);
+
         printf("[RESTORE] Skipping to play state (game_dlftbls[2])\n");
         printf("[RESTORE] ============================================\n");
+        
+        /* Force a refresh of the field and common data to ensure the BIRTH_CTRL
+         * and other field-dependent systems have a consistent world view. */
+        {
+            GAME_PLAY* play = (GAME_PLAY*)gamePT;
+            if (play != NULL) {
+                printf("[RESTORE] Forcing mFM_FieldInit and FG data refresh...\n");
+                mFM_FieldInit(play);
+            }
+        }
+        
         dlftbl = &game_dlftbls[2];
     } else {
         printf("[GRAPH] Normal boot — starting from title screen (game_dlftbls[0])\n");

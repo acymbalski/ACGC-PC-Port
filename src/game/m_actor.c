@@ -392,8 +392,17 @@ extern void Actor_info_ct(GAME* game, Actor_info* actor_info, Actor_data* player
 
     if (player_actor != NULL) {
         player_actor->world.position.y = mCoBG_GetBgY_OnlyCenter_FromWpos2(player_actor->world.position, 0.0f);
+#ifdef TARGET_PC
+        printf("[SCENE_INIT] Player spawned at (%.0f, %.0f, %.0f) - setting born_actor=TRUE\n",
+               (double)player_actor->world.position.x, (double)player_actor->world.position.y, (double)player_actor->world.position.z);
+#endif
         mFI_SetBearActor(play, player_actor->world.position, FALSE);
     }
+#ifdef TARGET_PC
+    else {
+        printf("[SCENE_INIT] FAILED to spawn player actor!\n");
+    }
+#endif
 
     /* Spawn the current bg item type actor */
     if (Common_Get(bg_item_profile) != 0) {

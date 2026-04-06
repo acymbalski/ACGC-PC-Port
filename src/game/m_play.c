@@ -218,9 +218,9 @@ static void Game_play_fbdemo_wipe_move(GAME_PLAY* play) {
     if (wipe->wipe_procs.isfinished_proc(&wipe->wipe_data) != 0) {
 #ifdef TARGET_PC
         static int _wipe_finished_log = 0;
-        if ((_wipe_finished_log++ % 120) == 0) {
-            printf("[WIPE_MOVE] wipe finished, fb_fade_type=%d isDone=%d\n",
-                   (int)play->fb_fade_type, isDone);
+        if ((_wipe_finished_log++ % 60) == 0) {
+            printf("[WIPE_MOVE] wipe finished, fb_fade_type=%d isDone=%d current=%d next=%d\n",
+                   (int)play->fb_fade_type, isDone, (int)Save_Get(scene_no), (int)play->next_scene_no);
         }
 #endif
         if ((play->fb_fade_type != FADE_TYPE_IN) && (play->fb_fade_type != FADE_TYPE_EVENT)) {
